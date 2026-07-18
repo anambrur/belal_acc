@@ -1,0 +1,117 @@
+@extends('layout')
+
+@section('title')
+    Sell Return Show
+@endsection
+
+
+
+@section('content')
+    <div class="page-wrapper">
+        <div class="content">
+            <div class="page-header">
+                <div class="page-title">
+                    <h4>Purchase Return Show</h4>
+                    <h6>Add/Update Purchase Return</h6>
+                </div>
+            </div>
+            <form action="{{ route('purchaseReturn.store') }}" method="post" id="jqvalidation">
+                @csrf()
+
+
+                <div class="card">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-lg-6 col-sm-6 col-12">
+                                <div class="form-group">
+                                    <label>Supplier Name</label>
+                                    <input type="text" value="{{ $purchaseReturnData[0]->supplier->supplier_name }}"
+                                        name="customer_name" id="customer_name">
+                                </div>
+                            </div>
+                            <div class="col-lg-6 col-sm-6 col-12">
+                                <div class="form-group">
+                                    <label>Purchase Date </label>
+                                    <div class="input-groupicon">
+                                        <input type="text" value="{{ $purchaseReturnData[0]->date }}" name="date"
+                                            placeholder="DD-MM-YYYY" />
+                                        <div class="addonset">
+                                            <img src="{{ asset('assets/img/icons/calendars.svg') }}" alt="img" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="table-responsive table-bordered">
+                            <table class="table" id="myTable">
+                                <thead>
+                                    <tr class="table-success">
+                                        <th>Product Name</th>
+                                        <th>Quantity</th>
+                                        <th>Purchase Price(<i class="fa-sharp fa-solid fa-bangladeshi-taka-sign"></i>)</th>
+                                        <th>Total Price</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="vertical-align: middle" id="tBody">
+                                    @forelse ($purchaseReturnData as $d)
+                                    {{-- {{$d}} --}}
+                                        <tr class="" id="tRow">
+                                            <td class="productimgname">
+                                                <a class="product-img">
+                                                    <img src="{{ asset($d->product->photo) }}" alt="product" />
+                                                </a>
+                                                <div class="form-group mt-3">
+                                                    <input type="text" name="product_name[]"
+                                                        value="{{ $d->product->product_name }}" placeholder="Product Name">
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="form-group mt-3">
+                                                    <input type="text" name="quantity[]" id='q_${i}'
+                                                        class="text-end quantity" value="{{ $d->quantity }}"
+                                                        placeholder="0">
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="form-group mt-3">
+                                                    <input type="text" name="sell_price[]" id="p_${i}"
+                                                        value="{{ $d->purchase_price }}" class="text-end price" placeholder="0">
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="form-group mt-3">
+                                                    <input type="text" name="total_price[]" class="text-end total_price"
+                                                        id='t_${i}' value="{{ $d->quantity * $d->purchase_price }}"
+                                                        placeholder="0">
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <a href="{{ route('purchaseReturn.edit', $d->id) }}">
+                                                    <span><i class="fa-solid fa-pen "></i></span>
+                                                </a>
+                                            </td>
+
+                                        </tr>
+                                    @empty
+                                    @endforelse
+
+
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                </div>
+        </div>
+        </form>
+    </div>
+    </div>
+@endsection
+
+@push('js')
+    <script src="{{ asset('assets/js/custom_purchase_return_show.js') }}"></script>
+@endpush
+<script></script>
