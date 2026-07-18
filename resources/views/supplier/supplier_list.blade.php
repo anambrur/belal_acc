@@ -4,71 +4,144 @@
     Supplier List
 @endsection
 
+@push('css')
+    <style>
+        .supplier-list-page .btn-reset-filters {
+            min-height: 42px;
+            width: 100%;
+            border-radius: 8px;
+            border: 1px solid #e8ecf1;
+            background: #fff;
+            font-weight: 600;
+        }
 
+        .supplier-list-page .btn-reset-filters:hover {
+            background: #f7f8fa;
+        }
+
+        .supplier-list-page .select2-container .select2-selection--single {
+            height: 42px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+        }
+
+        .supplier-list-page .select2-container--default .select2-selection--single .select2-selection__rendered {
+            line-height: 40px;
+            padding-left: 12px;
+        }
+
+        .supplier-list-page .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 40px;
+        }
+
+        .supplier-list-page .payment-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.35rem 0.7rem;
+            border-radius: 8px;
+            background: #fff8f1;
+            border: 1px solid #f3e4d4;
+            color: #c2410c;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .supplier-list-page .payment-link:hover {
+            background: #ff9f43;
+            border-color: #ff9f43;
+            color: #fff;
+        }
+    </style>
+@endpush
 
 @section('content')
-    <div class="page-wrapper">
+    <div class="page-wrapper supplier-list-page">
         <div class="content">
-            
+            <div class="page-header">
+                <div class="page-title">
+                    <h4>Supplier List</h4>
+                    <h6>Manage suppliers, balances &amp; payments</h6>
+                </div>
+                <div class="page-btn">
+                    <a href="{{ route('supplier.create') }}" class="btn btn-added">
+                        <img src="{{ asset('assets/img/icons/plus.svg') }}" alt="img" class="me-1" /> Add Supplier
+                    </a>
+                </div>
+            </div>
+
             @if (Session::has('success'))
                 <div class="alert alert-success">
                     {{ Session::get('success') }}
                 </div>
+                <script>
+                    setTimeout(function() {
+                        $('.alert-success').fadeOut('slow');
+                    }, 2000);
+                </script>
             @endif
 
-            <div class="card">
-                <div class="card-body">
-                    <div class="card mb-1" id="filter_input">
-                        <div class="card-body pb-0">
-                            <div class="row">
-                                <div class="col-lg-12 col-sm-12">
-                                    <div class="row">
-                                        <div class="col-lg col-sm-6 col-12">
-                                            <div class="form-group">
-                                                <select class="select" id="filter_road">
-                                                    <option>All Road</option>
-                                                    @foreach ($roads as $d)
-                                                        <option value="{{ $d->id }}">{{ $d->name }}</option>
-                                                    @endforeach
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div class="col-lg col-sm-6 col-12">
-                                            <div class="form-group">
-                                                <select class="select" id="filter_address">
-                                                    <option>All Address</option>
-                                                    @foreach ($locations as $d)
-                                                        <option value="{{ $d->id }}">{{ $d->address }}</option>
-                                                    @endforeach
-                                                </select>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+            <div class="filter-panel">
+                <div class="row g-3 align-items-end">
+                    <div class="col-lg-4 col-md-6">
+                        <label for="filter_road" class="form-label">Road</label>
+                        <select class="select" id="filter_road">
+                            <option>All Road</option>
+                            @foreach ($roads as $d)
+                                <option value="{{ $d->id }}">{{ $d->name }}</option>
+                            @endforeach
+                        </select>
                     </div>
 
+                    <div class="col-lg-4 col-md-6">
+                        <label for="filter_address" class="form-label">Address</label>
+                        <select class="select" id="filter_address">
+                            <option>All Address</option>
+                            @foreach ($locations as $d)
+                                <option value="{{ $d->id }}">{{ $d->address }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="col-lg-2 col-md-6">
+                        <button type="button" class="btn btn-reset-filters" id="reset_filters">
+                            <i class="fa fa-undo me-1"></i> Reset
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="list-card">
+                <div class="list-toolbar">
+                    <div>
+                        <h6>Suppliers</h6>
+                        <p class="hint mb-0 text-muted small">Due = purchase − return − payment</p>
+                    </div>
+                    <span class="badge bg-light text-dark border" id="active_filter_label">Filters: All</span>
+                </div>
+                <div class="list-body">
                     <div class="table-responsive">
-                        <table class="table datanew data-table" id="dataTable">
+                        <table class="table data-table" id="dataTable">
                             <thead>
                                 <tr>
                                     <th>SL</th>
-                                    <th>Supplier Name</th>
+                                    <th>Supplier</th>
                                     <th>Phone</th>
                                     <th>Road</th>
                                     <th>Address</th>
-                                    <th>Total Purchase(৳)</th>
-                                    <th>Total Return(৳)</th>
-                                    <th>Due(৳)</th>
+                                    <th class="text-end">Purchase</th>
+                                    <th class="text-end">Return</th>
+                                    <th class="text-end">Payment</th>
+                                    <th class="text-end">Due</th>
                                     <th>Status</th>
-                                    <th>Payment</th>
-                                    <th>Action</th>
+                                    <th class="text-center">Pay</th>
+                                    <th class="text-center">Action</th>
                                 </tr>
                             </thead>
-                            <tbody>
-
-                            </tbody>
+                            <tbody></tbody>
                         </table>
                     </div>
                 </div>
@@ -76,15 +149,41 @@
         </div>
     </div>
 @endsection
+
 @push('js')
     <script type="text/javascript">
-        $(function() {
-            $("#dataTable").DataTable().destroy();
+        $(document).ready(function() {
+            function updateFilterLabel() {
+                var road = $('#filter_road').val();
+                var address = $('#filter_address').val();
+                var parts = [];
 
-            var table = $(".data-table").DataTable({
+                if (road && road !== 'All Road') {
+                    parts.push($('#filter_road option:selected').text().trim());
+                }
+                if (address && address !== 'All Address') {
+                    parts.push($('#filter_address option:selected').text().trim());
+                }
+
+                $('#active_filter_label').text(parts.length ? 'Filters: ' + parts.join(' · ') : 'Filters: All');
+            }
+
+            if ($.fn.DataTable.isDataTable('#dataTable')) {
+                $('#dataTable').DataTable().destroy();
+            }
+
+            var table = $('#dataTable').DataTable({
                 processing: true,
                 serverSide: true,
                 responsive: true,
+                searchDelay: 400,
+                pageLength: 10,
+                order: [[1, 'asc']],
+                language: {
+                    search: '',
+                    searchPlaceholder: 'Search name, phone, road, address…',
+                    processing: 'Loading suppliers…'
+                },
                 ajax: {
                     url: "{{ route('supplierDataList') }}",
                     data: function(d) {
@@ -93,90 +192,122 @@
                     }
                 },
                 columns: [{
-                        data: "sl",
-                        name: "sl"
-                    },
-                    {
-                        data: "supplier.supplier_name",
-                        name: "supplier.supplier_name "
-                    },
-
-                    {
-                        data: "supplier.phone",
-                        name: "supplier.phone"
-                    },
-                    {
-                        data: "supplier.road",
-                        name: "supplier.road"
-                    },
-                    {
-                        data: "supplier.location",
-                        name: "supplier.location"
-                    },
-                    {
-                        data: "purchase",
-                        name: "purchase"
-                    },
-                    {
-                        data: "payment",
-                        name: "payment "
-                    },
-                    {
-                        data: "due",
-                        name: "due "
-                    },
-
-                    {
-                        data: "status",
-                        name: "status",
+                        data: null,
+                        name: 'sl',
                         orderable: false,
                         searchable: false,
+                        className: 'text-muted',
+                        render: function(data, type, row, meta) {
+                            return meta.row + meta.settings._iDisplayStart + 1;
+                        }
                     },
                     {
-                        data: "actionPayment",
-                        name: "actionPayment",
-                        orderable: false,
-                        searchable: false,
+                        data: 'supplier_name',
+                        name: 'supplier_name',
+                        defaultContent: '—'
                     },
                     {
-                        data: "action",
-                        name: "action",
+                        data: 'phone',
+                        name: 'phone',
+                        defaultContent: '—'
+                    },
+                    {
+                        data: 'road_name',
+                        name: 'road_name',
+                        defaultContent: '—'
+                    },
+                    {
+                        data: 'location_address',
+                        name: 'location_address',
+                        defaultContent: '—'
+                    },
+                    {
+                        data: 'purchase_total',
+                        name: 'purchase_total',
+                        searchable: false,
+                        className: 'text-end'
+                    },
+                    {
+                        data: 'return_total',
+                        name: 'return_total',
+                        searchable: false,
+                        className: 'text-end'
+                    },
+                    {
+                        data: 'payment_total',
+                        name: 'payment_total',
+                        searchable: false,
+                        className: 'text-end'
+                    },
+                    {
+                        data: 'due_total',
+                        name: 'due_total',
+                        searchable: false,
+                        className: 'text-end'
+                    },
+                    {
+                        data: 'status',
+                        name: 'status',
+                        orderable: false,
+                        searchable: false
+                    },
+                    {
+                        data: 'actionPayment',
+                        name: 'actionPayment',
                         orderable: false,
                         searchable: false,
+                        className: 'text-center'
                     },
+                    {
+                        data: 'action',
+                        name: 'action',
+                        orderable: false,
+                        searchable: false,
+                        className: 'text-center'
+                    }
                 ],
-                dom: "<'row'<'col-sm-12 col-md-3'B><'col-sm-12 col-md-9'f>>" +
-                     "<'row'<'col-sm-12'tr>>" +
-                     "<'row'<'col-sm-12 col-md-3'i><'col-sm-12 col-md-9'p>>",
+                dom: "<'row align-items-center m-2'<'col-sm-12 col-md-5'B><'col-sm-12 col-md-7'f>>" +
+                    "<'row'<'col-sm-12'tr>>" +
+                    "<'row align-items-center'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
                 buttons: [{
                         extend: 'copy',
-                        text: 'Copy',
-                        titleAttr: 'Copy'
+                        text: 'Copy'
                     },
                     {
                         extend: 'excel',
-                        text: 'Excel',
-                        titleAttr: 'Excel'
+                        text: 'Excel'
                     },
                     {
                         extend: 'pdf',
-                        text: 'PDF',
-                        titleAttr: 'PDF'
+                        text: 'PDF'
                     },
                     {
                         extend: 'print',
                         text: 'Print',
-                        titleAttr: 'Print',
                         exportOptions: {
-                            columns: [0, 1, 2, 3, 4, 5, 6, 7] // Specify the columns you want to print
+                            columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
                         }
                     }
                 ]
             });
-            $(".select").select2();
-            $('#filter_road, #filter_address').change(function() {
+
+            $('.select').select2({
+                width: '100%'
+            });
+
+            $('#filter_road, #filter_address').on('change', function() {
+                updateFilterLabel();
                 table.draw();
             });
+
+            $('#reset_filters').on('click', function() {
+                $('#filter_road').val('All Road').trigger('change.select2');
+                $('#filter_address').val('All Address').trigger('change.select2');
+                updateFilterLabel();
+                table.search('').draw();
+            });
+
+            updateFilterLabel();
         });
     </script>
 @endpush

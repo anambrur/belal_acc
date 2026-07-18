@@ -1,108 +1,148 @@
-$(document).ready(function () {
-    $(".select").select2();
-    $("#datetimepicker").datetimepicker({
-        format: "Y-m-d",
-        timepicker: false,
-        lang: "ru",
-        value: new Date(),
-    });
-});
-//validation
+/**
+ * Sell create/edit helpers
+ * Formula: grandTotal = max(subTotal - discount, 0)
+ *          due        = grandTotal - paid
+ */
+(function ($) {
+    "use strict";
 
-$("#jqvalidation").validate({
-    rules: {
-        customer_id: "required",
-        paid_amount: "required",
-        total_price: "required",
-        sub_total: "required",
-        discount_price: "required",
-        date: "required",
-    },
-    messages: {
-        customer_id: "Please select a Customer",
-        paid_amount: "Please Give Amount",
-        total_price: "Enter Total Price",
-        sub_total: "Enter Price",
-        discount_price: "Enter Price",
-        date: "Enter a Date",
-    },
-});
-
-//row delete
-// function row_del(v) {
-//     $(v).parent().parent().remove();
-// }
-
-//calculation
-function calculate(i) {
-    var qty = parseFloat($("#q_" + i).val());
-    var price = parseFloat($("#p_" + i).val());
-    var discount = parseFloat($("#d_" + i).val());
-    if (isNaN(qty)) {
-        qty = 0;
-    }
-    if (isNaN(price)) {
-        price = 0;
-    }
-    var total = qty * price;
-    if (isNaN(discount)) {
-        discount = 0;
+    function toNumber(value) {
+        var n = parseFloat(String(value).replace(/,/g, ""));
+        return Number.isFinite(n) ? n : 0;
     }
 
-    if (!isNaN(total) && !isNaN(discount)) {
-        var discountedPrice = total - total * (discount / 100);
-        $("#row_total_price" + i).val(discountedPrice.toFixed(2));
-    } else {
+    function money(value) {
+        return toNumber(value).toFixed(2);
     }
 
-    var totalSum = 0;
-    $("input[name='row_total_price[]']").each(function () {
-        var value = parseFloat($(this).val());
-        if (!isNaN(value)) {
-            totalSum += value;
+    function readField(selector) {
+        return toNumber($(selector).val());
+    }
+
+    function writeField(selector, value) {
+        $(selector).val(money(value));
+    }
+
+    /**
+     * Recalculate grand total + due from summary fields.
+     */
+    function recalculateTotals() {
+        var subTotal = readField("#sub_total");
+        var discount = readField("#discount_price");
+        var paid = readField("#paid_amount");
+
+        var grandTotal = Math.max(subTotal - discount, 0);
+        var due = grandTotal - paid;
+
+        writeField("#total_price", grandTotal);
+        writeField("#due", due);
+
+        return {
+            subTotal: subTotal,
+            discount: discount,
+            grandTotal: grandTotal,
+            paid: paid,
+            due: due,
+        };
+    }
+
+    /**
+     * Line-item row calculation (legacy POS rows, if present).
+     * Row discount (#d_{i}) is treated as a percentage.
+     */
+    window.calculate = function (rowIndex) {
+        var qty = toNumber($("#q_" + rowIndex).val());
+        var price = toNumber($("#p_" + rowIndex).val());
+        var rowDiscountPct = toNumber($("#d_" + rowIndex).val());
+
+        var lineTotal = qty * price;
+        var discounted = lineTotal - lineTotal * (rowDiscountPct / 100);
+
+        $("#row_total_price" + rowIndex).val(money(discounted));
+
+        var subTotal = 0;
+        $("input[name='row_total_price[]']").each(function () {
+            subTotal += toNumber($(this).val());
+        });
+
+        writeField("#sub_total", subTotal);
+        recalculateTotals();
+    };
+
+    function initDatePicker() {
+        var $dateInput = $("#datetimepicker");
+        if (!$dateInput.length || typeof $dateInput.datetimepicker !== "function") {
+            return;
         }
+
+        var options = {
+            format: "Y-m-d",
+            timepicker: false,
+            lang: "en",
+            scrollInput: false,
+        };
+
+        // Create pages: default today. Edit pages: keep existing value.
+        if (!$dateInput.val()) {
+            options.value = new Date();
+        }
+
+        $dateInput.datetimepicker(options);
+    }
+
+    function initValidation() {
+        var $form = $("#jqvalidation");
+        if (!$form.length || typeof $form.validate !== "function") {
+            return;
+        }
+
+        $form.validate({
+            rules: {
+                customer_id: "required",
+                date: "required",
+                accounts_id: "required",
+                sub_total: "required",
+                discount_price: "required",
+                total_price: "required",
+                paid_amount: "required",
+            },
+            messages: {
+                customer_id: "Please select a customer",
+                date: "Please choose a date",
+                accounts_id: "Please select an account",
+                sub_total: "Enter sub total",
+                discount_price: "Enter discount (use 0 if none)",
+                total_price: "Enter total price",
+                paid_amount: "Enter paid amount (use 0 if unpaid)",
+            },
+        });
+    }
+
+    function bindAmountInputs() {
+        $(document).on(
+            "input change",
+            "#sub_total, #discount_price, #paid_amount",
+            function () {
+                recalculateTotals();
+            }
+        );
+    }
+
+    $(function () {
+        if ($(".select").length && typeof $.fn.select2 === "function") {
+            $(".select").select2();
+        }
+
+        initDatePicker();
+        initValidation();
+        bindAmountInputs();
+        recalculateTotals();
     });
 
-    $("#sub_total").val(totalSum);
-
-    var subtotal = $("#sub_total").val();
-
-    var discount = parseFloat($("#discount_price").val());
-    if (isNaN(discount)) {
-        discount = 0;
-        // $("#discount_price").val(0);
-    }
-    var grand_total = subtotal - discount;
-    $("#total_price").val(grand_total);
-    var paid = parseFloat($("#paid_amount").val());
-    if (isNaN(paid)) {
-        paid = 0;
-        // $("#paid_amount").val(0);
-    }
-    var due = grand_total - paid;
-    $("#due").val(due);
-}
-//grand total calculation
-
-$("#sub_total,#paid_amount,#discount_price").click(function () {
-    $(this).val("");
-});
-
-$("#sub_total,#paid_amount,#discount_price").keyup(function () {
-    var total = $("#sub_total").val();
-
-    var discount = parseFloat($("#discount_price").val());
-    if (isNaN(discount)) {
-        discount = 0;
-        // $("#discount_price").val(0);
-    }
-    var grand_total = total - discount;
-    $("#total_price").val(grand_total);
-    var paid = parseFloat($("#paid_amount").val());
-    if (isNaN(paid)) {
-        paid = 0;
-        // $("#paid_amount").val(0);
-    }
-    var due = grand_total - paid;
-    $("#due").val(due);
-});
+    // Expose for debugging / external calls
+    window.SellCalculator = {
+        recalculateTotals: recalculateTotals,
+        toNumber: toNumber,
+        money: money,
+    };
+})(jQuery);

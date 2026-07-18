@@ -14,8 +14,6 @@ use Illuminate\Http\Request;
 use App\Models\PaymentMethod;
 use App\Models\PurchaseReturn;
 use Illuminate\Support\Facades\DB;
-
-use function PHPUnit\Framework\isNull;
 use Yajra\DataTables\Facades\DataTables;
 
 class SellController extends Controller
@@ -33,65 +31,105 @@ class SellController extends Controller
     }
 
     /**
-     * Yajra data table
+     * Yajra data table — server-side query with joins (fast).
      */
     public function getSellDataList(Request $request)
     {
-        $query =  Sell::groupBy('invoice_id')->orderBy('id', 'DESC')
-            ->select('id', 'invoice_id', 'customer_id', 'total_price', 'paid_amount', 'total_discount', 'date', 'location_id', 'created_at', 'updated_at')->with('customer', 'customer.location');
+        $query = DB::table('sells')
+            ->leftJoin('customers', 'customers.id', '=', 'sells.customer_id')
+            ->leftJoin('locations', 'locations.id', '=', 'customers.location_id')
+            ->select([
+                'sells.id',
+                'sells.invoice_id',
+                'sells.customer_id',
+                'sells.total_price',
+                'sells.paid_amount',
+                'sells.total_discount',
+                'sells.date',
+                'sells.location_id',
+                'sells.created_at',
+                'customers.customer_name',
+                'locations.address as location_address',
+                DB::raw('(sells.total_price - sells.paid_amount) as due_amount'),
+            ]);
 
-
-        if ($request->has('filter_customer') && $request->filter_customer != 'All Customer') {
-            $query->where('customer_id', $request->filter_customer);
+        if ($request->filled('filter_customer') && $request->filter_customer !== 'All Customer') {
+            $query->where('sells.customer_id', $request->filter_customer);
         }
 
-        if ($request->has('filter_address') && $request->filter_address != 'All Address') {
-            $query->where('location_id', $request->filter_address);
+        if ($request->filled('filter_address') && $request->filter_address !== 'All Address') {
+            $query->where('sells.location_id', $request->filter_address);
         }
 
-        // // Apply filtering based on date range
-        if ($request->has('date_range') && !empty($request->date_range)) {
+        if ($request->filled('date_range')) {
             $dates = explode(' - ', $request->date_range);
-            $start_date = $dates[0];
-            $end_date = $dates[1];
-            $query->whereBetween('created_at', [$start_date, $end_date]);
+            if (count($dates) === 2) {
+                $query->whereBetween('sells.date', [trim($dates[0]), trim($dates[1])]);
+            }
         }
 
+        return DataTables::of($query)
+            ->orderColumn('customer_name', 'customers.customer_name $1')
+            ->orderColumn('location_address', 'locations.address $1')
+            ->orderColumn('invoice_id', 'sells.invoice_id $1')
+            ->orderColumn('date', 'sells.date $1')
+            ->orderColumn('total_price', 'sells.total_price $1')
+            ->orderColumn('paid_amount', 'sells.paid_amount $1')
+            ->orderColumn('due_amount', 'due_amount $1')
+            ->orderColumn('created_at', 'sells.created_at $1')
+            ->filterColumn('customer_name', function ($q, $keyword) {
+                $q->where('customers.customer_name', 'like', "%{$keyword}%");
+            })
+            ->filterColumn('location_address', function ($q, $keyword) {
+                $q->where('locations.address', 'like', "%{$keyword}%");
+            })
+            ->filterColumn('invoice_id', function ($q, $keyword) {
+                $q->where('sells.invoice_id', 'like', "%{$keyword}%");
+            })
+            ->filterColumn('date', function ($q, $keyword) {
+                $q->where('sells.date', 'like', "%{$keyword}%");
+            })
+            // false = disable Yajra auto-search (avoids wrong table.column aliases)
+            ->filter(function ($q) use ($request) {
+                $search = trim((string) $request->input('search.value', ''));
+                if ($search === '') {
+                    return;
+                }
 
-
-        $data = $query->orderBy('created_at', 'DESC')->get();
-        // dd($data);
-        $sl = 0;
-        return Datatables::of($data)
-            ->addIndexColumn()
+                $like = '%' . $search . '%';
+                $q->where(function ($inner) use ($like) {
+                    $inner->where('customers.customer_name', 'like', $like)
+                        ->orWhere('locations.address', 'like', $like)
+                        ->orWhere('sells.invoice_id', 'like', $like)
+                        ->orWhere('sells.date', 'like', $like);
+                });
+            }, false)
             ->addColumn('action', function ($row) {
-                $actions =
-                    '<div class="d-flex align-center ">
-                            <a href="' . route('sell.show', $row->id) . '"><span><i class="fa-solid fa-eye me-3"></i></span></a>
-                        
-                            <a href="' . route('sell.edit', $row->id) . '"> <span><i class="fa-solid fa-pen "></i></span></a>
-                            
-                            <button type="button" class="border-0 ms-2 text-danger bg-transparent delete-button" 
-                            data-url="' . route('sell.destroy', $row->id) . '">
+                return
+                    '<div class="action-btns">
+                        <a href="' . route('sell.show', $row->id) . '" title="View">
+                            <i class="fa-solid fa-eye"></i>
+                        </a>
+                        <a href="' . route('sell.edit', $row->id) . '" title="Edit">
+                            <i class="fa-solid fa-pen"></i>
+                        </a>
+                        <button type="button" class="border-0 text-danger bg-transparent delete-button"
+                            data-url="' . route('sell.destroy', $row->id) . '" title="Delete">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>';
-                return $actions;
-            })
-            ->rawColumns(['action'])
-            ->addColumn('due', function ($row) {
-                return $row->total_price - $row->paid_amount;
             })
             ->addColumn('status', function ($row) {
-                $statusText = ($row->total_price - $row->paid_amount > 0) ? 'Unpaid' : 'Paid';
-                $textColor = ($row->total_price - $row->paid_amount > 0) ? 'text-danger' : 'text-success';
-
-                return '<span class="px-2 py-1 border rounded ' . $textColor . '">' . $statusText . '</span>';
+                $due = (float) $row->due_amount;
+                if ($due > 0) {
+                    return '<span class="px-2 py-1 border rounded text-danger">Unpaid</span>';
+                }
+                return '<span class="px-2 py-1 border rounded text-success">Paid</span>';
             })
-            ->addColumn('sl', function () use (&$sl) {
-                return ++$sl;
-            })
-            ->rawColumns(['due', 'action', 'status', 'sl'])
+            ->editColumn('total_price', fn ($row) => number_format((float) $row->total_price, 2))
+            ->editColumn('paid_amount', fn ($row) => number_format((float) $row->paid_amount, 2))
+            ->editColumn('due_amount', fn ($row) => number_format((float) $row->due_amount, 2))
+            ->rawColumns(['action', 'status'])
             ->make(true);
     }
     /**

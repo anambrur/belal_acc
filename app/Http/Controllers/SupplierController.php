@@ -37,96 +37,127 @@ class SupplierController extends Controller
      */
     public function supplierDataList(Request $request)
     {
-        $query = Supplier::with([
-            'purchase' => function ($q) {
-                $q->groupBy('invoice_id');
-            },
-            'purchaseReturn',
-            'payment',
-            'road',
-            'location'
-        ]);
+        // One total_price per invoice (avoids double-count if multiple rows share invoice_id)
+        $purchaseInvoices = DB::table('purchases')
+            ->select('supplier_id', 'invoice_id', DB::raw('MAX(total_price) as invoice_total'))
+            ->groupBy('supplier_id', 'invoice_id');
 
-        // Apply filters
-        if ($request->has('filter_road') && $request->filter_road != 'All Road') {
-            $query->where('road_id', $request->filter_road);
+        $purchaseAgg = DB::query()
+            ->fromSub($purchaseInvoices, 'purchase_invoices')
+            ->select('supplier_id', DB::raw('SUM(invoice_total) as purchase_total'))
+            ->groupBy('supplier_id');
+
+        $returnAgg = DB::table('purchase_returns')
+            ->select('supplier_id', DB::raw('SUM(total_amount) as return_total'))
+            ->groupBy('supplier_id');
+
+        $paymentAgg = DB::table('payments')
+            ->select('payable_id', DB::raw('SUM(amount) as payment_total'))
+            ->where('payable_type', Supplier::class)
+            ->groupBy('payable_id');
+
+        $query = DB::table('suppliers')
+            ->leftJoin('roads', 'roads.id', '=', 'suppliers.road_id')
+            ->leftJoin('locations', 'locations.id', '=', 'suppliers.location_id')
+            ->leftJoinSub($purchaseAgg, 'purchase_agg', 'purchase_agg.supplier_id', '=', 'suppliers.id')
+            ->leftJoinSub($returnAgg, 'return_agg', 'return_agg.supplier_id', '=', 'suppliers.id')
+            ->leftJoinSub($paymentAgg, 'payment_agg', 'payment_agg.payable_id', '=', 'suppliers.id')
+            ->select([
+                'suppliers.id',
+                'suppliers.supplier_name',
+                'suppliers.phone',
+                'suppliers.created_at',
+                'roads.name as road_name',
+                'locations.address as location_address',
+                DB::raw('COALESCE(purchase_agg.purchase_total, 0) as purchase_total'),
+                DB::raw('COALESCE(return_agg.return_total, 0) as return_total'),
+                DB::raw('COALESCE(payment_agg.payment_total, 0) as payment_total'),
+                DB::raw('(COALESCE(purchase_agg.purchase_total, 0) - COALESCE(return_agg.return_total, 0) - COALESCE(payment_agg.payment_total, 0)) as due_total'),
+            ]);
+
+        if ($request->filled('filter_road') && $request->filter_road !== 'All Road') {
+            $query->where('suppliers.road_id', $request->filter_road);
         }
 
-        if ($request->has('filter_address') && $request->filter_address != 'All Address') {
-            $query->where('location_id', $request->filter_address);
+        if ($request->filled('filter_address') && $request->filter_address !== 'All Address') {
+            $query->where('suppliers.location_id', $request->filter_address);
         }
 
-        $suppliers = $query->orderBy('created_at', 'DESC')->get();
+        return DataTables::of($query)
+            ->orderColumn('supplier_name', 'suppliers.supplier_name $1')
+            ->orderColumn('phone', 'suppliers.phone $1')
+            ->orderColumn('road_name', 'roads.name $1')
+            ->orderColumn('location_address', 'locations.address $1')
+            ->orderColumn('purchase_total', 'purchase_total $1')
+            ->orderColumn('return_total', 'return_total $1')
+            ->orderColumn('payment_total', 'payment_total $1')
+            ->orderColumn('due_total', 'due_total $1')
+            ->orderColumn('created_at', 'suppliers.created_at $1')
+            ->filterColumn('supplier_name', function ($q, $keyword) {
+                $q->where('suppliers.supplier_name', 'like', "%{$keyword}%");
+            })
+            ->filterColumn('phone', function ($q, $keyword) {
+                $q->where('suppliers.phone', 'like', "%{$keyword}%");
+            })
+            ->filterColumn('road_name', function ($q, $keyword) {
+                $q->where('roads.name', 'like', "%{$keyword}%");
+            })
+            ->filterColumn('location_address', function ($q, $keyword) {
+                $q->where('locations.address', 'like', "%{$keyword}%");
+            })
+            ->filter(function ($q) use ($request) {
+                $search = trim((string) $request->input('search.value', ''));
+                if ($search === '') {
+                    return;
+                }
 
-        $data = [];
-        foreach ($suppliers as $c) {
-            $d = [
-                'supplier' => [
-                    'id' => $c->id,
-                    'supplier_name' => $c->supplier_name,
-                    'phone' => $c->phone,
-                    'road' => $c->road->name,
-                    'location' => $c->location->address
-                ]
-            ];
-
-            $d['purchase'] = $c->purchase->sum('total_price');
-            $d['return'] = $c->purchaseReturn->sum('total_amount');
-            $d['payment'] = $c->payment->sum('amount');
-
-            $data[] = $d;
-        }
-
-        $sl = 0;
-        return Datatables::of($data)
-            ->addIndexColumn()
+                $like = '%' . $search . '%';
+                $q->where(function ($inner) use ($like) {
+                    $inner->where('suppliers.supplier_name', 'like', $like)
+                        ->orWhere('suppliers.phone', 'like', $like)
+                        ->orWhere('roads.name', 'like', $like)
+                        ->orWhere('locations.address', 'like', $like);
+                });
+            }, false)
             ->addColumn('action', function ($row) {
-                $supplierId = $row['supplier']['id'];
-                $actions = '
-                <div class="d-flex align-center">
-                    <a href="' . route('supplier.show', $supplierId) . '">
-                        <span><i class="fa-solid fa-eye me-3"></i></span>
-                    </a>
-                    <a href="' . route('supplier.edit', $supplierId) . '">
-                        <span><i class="fa-solid fa-pen"></i></span>
-                    </a>
-                    <form action="' . route('supplier.destroy', $supplierId) . '" method="post">
-                        <input type="hidden" name="_token" value="' . csrf_token() . '"/>
-                        <input type="hidden" name="_method" value="delete"/>
-                        <button onclick="return confirm(\'Are you sure you want to delete?\')" class="btn">
-                            <i class="fas fa-trash" style="color: #FF0000;"></i>
-                        </button>
-                    </form>
-                </div>';
-                return $actions;
+                return
+                    '<div class="action-btns">
+                        <a href="' . route('supplier.show', $row->id) . '" title="Ledger">
+                            <i class="fa-solid fa-eye"></i>
+                        </a>
+                        <a href="' . route('supplier.edit', $row->id) . '" title="Edit">
+                            <i class="fa-solid fa-pen"></i>
+                        </a>
+                        <form action="' . route('supplier.destroy', $row->id) . '" method="post" class="d-inline">
+                            <input type="hidden" name="_token" value="' . csrf_token() . '"/>
+                            <input type="hidden" name="_method" value="delete"/>
+                            <button onclick="return confirm(\'Are you sure you want to delete?\')"
+                                class="border-0 text-danger bg-transparent p-0" type="submit" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
+                    </div>';
             })
             ->addColumn('actionPayment', function ($row) {
-                $supplierId = $row['supplier']['id'];
-                return '<a href="' . route('supplierPayment', $supplierId) . '">
-                <span class="badges bg-secondary">Payment</span>
-            </a>';
-            })
-            ->addColumn('sl', function () use (&$sl) {
-                return ++$sl;
-            })
-            ->addColumn('due', function ($row) {
-                return $row['purchase'] - $row['payment'] - $row['return'];
+                return '<a class="payment-link" href="' . route('supplierPayment', $row->id) . '">
+                    <i class="fa fa-money-bill-wave"></i> Payment
+                </a>';
             })
             ->addColumn('status', function ($row) {
-                $due = $row['purchase'] - $row['payment'] - $row['return'];
-
+                $due = (float) $row->due_total;
                 if ($due > 0) {
-                    // Due status - red badge
                     return '<span class="badge bg-danger">Due</span>';
-                } else if ($due < 0) {
-                    // Overpaid status - blue badge
-                    return '<span class="badge bg-info">Overpaid</span>';
-                } else {
-                    // Paid status - green badge
-                    return '<span class="badge bg-success">Paid</span>';
                 }
+                if ($due < 0) {
+                    return '<span class="badge bg-info text-dark">Overpaid</span>';
+                }
+                return '<span class="badge bg-success">Paid</span>';
             })
-            ->rawColumns(['actionPayment', 'action', 'sl', 'due', 'status'])
+            ->editColumn('purchase_total', fn ($row) => number_format((float) $row->purchase_total, 2))
+            ->editColumn('return_total', fn ($row) => number_format((float) $row->return_total, 2))
+            ->editColumn('payment_total', fn ($row) => number_format((float) $row->payment_total, 2))
+            ->editColumn('due_total', fn ($row) => number_format((float) $row->due_total, 2))
+            ->rawColumns(['actionPayment', 'action', 'status'])
             ->make(true);
     }
 

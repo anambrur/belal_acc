@@ -9,7 +9,7 @@ class Sell extends Model
 {
     use HasFactory;
     protected $fillable = [
-        'invoice_id', 'customer_id', 'total_price', 'paid_amount', 'discount', 'date', 'location_id'
+        'invoice_id', 'customer_id', 'total_price', 'paid_amount', 'total_discount', 'date', 'location_id'
     ];
     function product()
     {

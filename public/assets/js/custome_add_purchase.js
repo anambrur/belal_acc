@@ -15,7 +15,7 @@ $(document).ready(function () {
     function handleBarcodeScanning(barcode) {
         isBarcodeScanning = true;
         $.ajax({
-            url: base_Url + `getProductDataBarcode/${barcode}`,
+            url: base_Url + `product-data-barcode/${barcode}`,
             success: function (result) {
                 isBarcodeScanning = false;
 

@@ -30,56 +30,10 @@
     <link rel="stylesheet" href="{{ asset('assets/plugins/fontawesome/css/all.min.css') }}" />
 
     <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}" />
+    <link rel="stylesheet" href="{{ asset('assets/css/modern-tables.css') }}" />
     <link rel="stylesheet" href="{{ asset('assets/css/jquery.datetimepicker.min.css') }}" />
     <link rel="stylesheet" href="{{ asset('assets/css/error.css') }}" />
     <link rel="stylesheet" href="{{ asset('assets/plugins/select2/css/select2.min.css') }}" />
-
-    @push('css')
-        <style>
-            .dt-buttons {
-                margin-top: 10px
-            }
-
-            .buttons-html5,
-            .buttons-print {
-                background: #ff9f43 !important;
-                padding: 3px 5px;
-                color: #fff;
-                font-weight: 700;
-                font-size: 14px;
-                border: 1px solid #ff9f43;
-            }
-
-            .pagination {
-                margin-bottom: 0;
-            }
-
-            .page-link {
-                color: #ff9f43;
-                background-color: #fff;
-                border: 1px solid #dee2e6;
-            }
-
-            .page-item.active .page-link {
-                color: #fff;
-                background-color: #ff9f43;
-                border-color: #ff9f43;
-            }
-
-            .page-link:hover {
-                color: #e68a39;
-                background-color: #e9ecef;
-                border-color: #dee2e6;
-            }
-
-            .page-item.disabled .page-link {
-                color: #6c757d;
-                background-color: #fff;
-                border-color: #dee2e6;
-            }
-        </style>
-    @endpush
-
 
     @stack('css')
 

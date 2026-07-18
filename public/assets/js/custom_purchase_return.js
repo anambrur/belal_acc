@@ -18,7 +18,7 @@ $(document).ready(function () {
         if (invoice_number.length > 0) {
             // console.log(invoice_number);
             $.ajax({
-                url: base_Url + `purchaseReturnData/${invoice_number}`,
+                url: base_Url + `purchase-return-data/${invoice_number}`,
                 success: function (result) {
                     if (result.length === 0) {
                         $("#tBody").empty();

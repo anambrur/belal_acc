@@ -6,7 +6,7 @@ var base_Url = window.MyAppGlobals.base_Url;
 
 function getPayId(id) {
     $.ajax({
-        url: base_Url + `/payment/paymentMethodEdit/${id}`,
+        url: base_Url + `/payment-method-edit/${id}`,
         success: function (result) {
             $("#payment_method").val(result.payment_method);
             var nId = result.id;

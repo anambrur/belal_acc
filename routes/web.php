@@ -51,50 +51,50 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
+    // Related product settings (register before product resource to avoid {product} collisions)
     Route::prefix('product')->group(function () {
         Route::resource('category', CategoryController::class)->names('category');
         Route::resource('unit', UnitController::class)->names('unit');
-        Route::resource('product', ProductController::class)->names('product');
         Route::resource('company', CompanyController::class)->names('company');
-        Route::get('productListTable', [ProductController::class, 'productListTable'])->name('productListTable');
+        Route::get('list-table', [ProductController::class, 'productListTable'])->name('productListTable');
     });
+    Route::resource('product', ProductController::class)->names('product');
 
+    // Purchase (data-list before resource)
+    Route::get('purchase/data-list', [PurchaseController::class, 'getPurchaseDataList'])->name('getPurchaseDataList');
+    Route::resource('purchase', PurchaseController::class)->names('purchase');
 
-    Route::prefix('purchase')->group(function () {
-        Route::resource('purchase', PurchaseController::class)->names('purchase');
-        Route::get('getPurchaseDataList', [PurchaseController::class, 'getPurchaseDataList'])->name('getPurchaseDataList');
-    });
-
-    Route::prefix('sell')->group(function () {
-        Route::resource('sell', SellController::class)->names('sell');
-        Route::get('getSellDataList', [SellController::class, 'getSellDataList'])->name('getSellDataList');
-    });
+    // Sell (data-list before resource)
+    Route::get('sell/data-list', [SellController::class, 'getSellDataList'])->name('getSellDataList');
+    Route::resource('sell', SellController::class)->names('sell');
 
     Route::prefix('return')->group(function () {
-        Route::resource('sellsReturn', SellsReturnController::class)->names('sellsReturn');
-        Route::resource('purchaseReturn', PurchaseReturnController::class)->names('purchaseReturn');
-        // Route::get('sellReturnShow/{id}',[SellsReturnController::class,'sellReturnShow'])->name('sellReturnShow');
+        Route::resource('sells-return', SellsReturnController::class)->names('sellsReturn');
+        Route::resource('purchase-return', PurchaseReturnController::class)->names('purchaseReturn');
     });
 
 
     Route::prefix('people')->group(function () {
         Route::resource('supplier', SupplierController::class)->names('supplier');
+
+        // Customer ledger PDF before resource to avoid route collisions
+        Route::get('customer/{customer}/ledger/pdf', [CustomerController::class, 'downloadLedgerPdf'])
+            ->name('customer.ledger.pdf');
+
         Route::resource('customer', CustomerController::class)->names('customer');
 
-        Route::get('customerDataList', [CustomerController::class, 'customerDataList'])->name('customerDataList');
-        Route::get('supplierDataList', [SupplierController::class, 'supplierDataList'])->name('supplierDataList');
+        Route::get('customer-data-list', [CustomerController::class, 'customerDataList'])->name('customerDataList');
+        Route::get('supplier-data-list', [SupplierController::class, 'supplierDataList'])->name('supplierDataList');
 
-        Route::get('supplierPayment/{id}', [SupplierController::class, 'supplierPayment'])->name('supplierPayment');
+        Route::get('supplier-payment/{id}', [SupplierController::class, 'supplierPayment'])->name('supplierPayment');
         Route::post('make-supplier-payment', [SupplierController::class, 'makeSupplierPayment'])->name('makeSupplierPayment');
 
-        Route::get('customerPayment/{id}', [CustomerController::class, 'customerPayment'])->name('customerPayment');
+        Route::get('customer-payment/{id}', [CustomerController::class, 'customerPayment'])->name('customerPayment');
         Route::post('make-customer-payment', [CustomerController::class, 'makeCustomerPayment'])->name('makeCustomerPayment');
 
-        // Edit payment form
+        // Supplier payment routes
         Route::get('/supplier/payment/{payment}/edit', [SupplierController::class, 'editPayment'])->name('supplier.payment.edit');
-        // Update payment
         Route::put('/supplier/payment/{payment}', [SupplierController::class, 'updatePayment'])->name('supplier.payment.update');
-        // Delete payment
         Route::delete('/supplier/payment/{payment}', [SupplierController::class, 'destroyPayment'])->name('supplier.payment.destroy');
 
         // Customer payment routes
@@ -103,77 +103,67 @@ Route::middleware('auth')->group(function () {
         Route::delete('/customer/payment/{payment}', [CustomerController::class, 'destroyPayment'])->name('customer.payment.destroy');
     });
 
-    //api sell data route
-    Route::get('sellsData/{id}', [SellController::class, 'sellsData'])->name('sellsData');
-    Route::get('sellsDataBarcode/{barcode}', [SellController::class, 'sellsDataBarcode'])->name('sellsDataBarcode');
+    // API sell data routes
+    Route::get('sells-data/{id}', [SellController::class, 'sellsData'])->name('sellsData');
+    Route::get('sells-data-barcode/{barcode}', [SellController::class, 'sellsDataBarcode'])->name('sellsDataBarcode');
 
-    //purchase in barcode
-    Route::get('getProductDataBarcode/{barcode}', [PurchaseController::class, 'getProductDataBarcode'])->name('getProductDataBarcode');
+    // Purchase barcode lookup
+    Route::get('product-data-barcode/{barcode}', [PurchaseController::class, 'getProductDataBarcode'])->name('getProductDataBarcode');
 
-    ///api sell return data
-    Route::get('sellsReturnData/{id}', [SellsReturnController::class, 'sellsReturnData'])->name('sellsReturnData');
-    Route::get('purchaseReturnData/{id}', [PurchaseReturnController::class, 'purchaseReturnData'])->name('purchaseReturnData');
+    // API return data
+    Route::get('sells-return-data/{id}', [SellsReturnController::class, 'sellsReturnData'])->name('sellsReturnData');
+    Route::get('purchase-return-data/{id}', [PurchaseReturnController::class, 'purchaseReturnData'])->name('purchaseReturnData');
 
-    ///barcode generator
-    Route::get('generateBarcode/{id}', [ProductController::class, 'generateBarcode'])->name('generateBarcode');
+    // Barcode generator
+    Route::get('generate-barcode/{id}', [ProductController::class, 'generateBarcode'])->name('generateBarcode');
 
+    Route::resource('stock-report', StockController::class)->names('stockReport');
 
-    Route::prefix('stock')->group(function () {
-        Route::resource('stock-report', StockController::class)->names('stockReport');
-    });
-    Route::prefix('payment')->group(function () {
-        Route::resource('payment-method', PaymentMethodController::class)->names('paymentMethod');
-        Route::get('paymentMethodEdit/{id}', [PaymentMethodController::class, 'payment_method_edit'])->name('payment_method_edit');
-    });
+    Route::resource('payment-method', PaymentMethodController::class)->names('paymentMethod');
+    Route::get('payment-method-edit/{id}', [PaymentMethodController::class, 'payment_method_edit'])->name('payment_method_edit');
 
+    Route::resource('expense-category', ExpenseCategoryController::class)->names('expenseCategory');
+    Route::resource('expense', ExpenseController::class)->names('expense');
 
-    Route::prefix('expense')->group(function () {
-        Route::resource('expense', ExpenseController::class)->names('expense');
-        Route::resource('expenseCategory', ExpenseCategoryController::class)->names('expenseCategory');
-    });
+    // Reports
+    Route::get('profit-calculation', [ProfitController::class, 'profitCalculation'])->name('profitCalculation');
+    Route::post('date-filter', [ProfitController::class, 'dateFilter'])->name('dateFilter');
+    Route::get('sells-report-list', [ProfitController::class, 'sellsReportList'])->name('sellsReportList');
+    Route::get('purchase-report-list', [ProfitController::class, 'purchaseReportList'])->name('purchaseReportList');
+    Route::get('sells-report', [ProfitController::class, 'sellsReport'])->name('sellsReport');
 
+    // Loan (payment routes before resource)
+    Route::get('loan/payment/{id}', [LoanController::class, 'loanPayment'])->name('loanPayment');
+    Route::post('loan/make-payment', [LoanController::class, 'makeLoanPayment'])->name('makeLoanPayment');
+    Route::resource('loan', LoanController::class)->names('loan');
 
-    // Route::prefix('report')->group(function () {
-    Route::get('profitCalculation', [ProfitController::class, 'profitCalculation'])->name('profitCalculation');
-    Route::post('dateFilter', [ProfitController::class, 'dateFilter'])->name('dateFilter');
-    Route::get('sellsReportList', [ProfitController::class, 'sellsReportList'])->name('sellsReportList');
-    Route::get('purchaseReportList', [ProfitController::class, 'purchaseReportList'])->name('purchaseReportList');
-    Route::get('sellsReport', [ProfitController::class, 'sellsReport'])->name('sellsReport');
-    // });
-    //loan
-    Route::prefix('loan')->group(function () {
-        Route::resource('loan', LoanController::class)->names('loan');
-        Route::get('loanPayment/{id}', [LoanController::class, 'loanPayment'])->name('loanPayment');
-        Route::post('makeLoanPayment', [LoanController::class, 'makeLoanPayment'])->name('makeLoanPayment');
-    });
-
-    //Location
+    // Location
     Route::resource('location', LocationController::class)->names('location');
-    Route::get('getLocationList', [LocationController::class, 'getLocationList'])->name('getLocationList');
+    Route::get('location-list', [LocationController::class, 'getLocationList'])->name('getLocationList');
 
-    //Road
+    // Road
     Route::resource('road', RoadController::class)->names('road');
-    Route::get('getRoadList', [RoadController::class, 'getRoadList'])->name('getRoadList');
+    Route::get('road-list', [RoadController::class, 'getRoadList'])->name('getRoadList');
 
-    //Batch
+    // Batch
     Route::resource('batch', BatchController::class)->names('batch');
-    Route::get('getBatchList', [BatchController::class, 'getBatchList'])->name('getBatchList');
+    Route::get('batch-list', [BatchController::class, 'getBatchList'])->name('getBatchList');
 
-    //Product name transliteration
+    // Product name transliteration
     Route::get('/transliterate-form', [TransliterationController::class, 'showForm']);
     Route::post('/transliterate', [TransliterationController::class, 'transliterate']);
 
-    //accounting sheet
+    // Accounting sheet
     Route::get('balance-sheet-view', [AccountingController::class, 'blanceSheetView'])->name('balance_sheet_view');
     Route::get('balance-sheet-table', [AccountingController::class, 'blanceSheetTable'])->name('blanceSheetTable');
-    Route::get('collectionList', [AccountingController::class, 'collectionList'])->name('collectionList');
-    Route::get('collectionListData', [AccountingController::class, 'collectionListData'])->name('collectionListData');
+    Route::get('collection-list', [AccountingController::class, 'collectionList'])->name('collectionList');
+    Route::get('collection-list-data', [AccountingController::class, 'collectionListData'])->name('collectionListData');
 
-    //Cash flow show 
-    Route::resource('cash_flow', CashFlowController::class)->names('cash_flow');
+    // Cash flow
+    Route::resource('cash-flow', CashFlowController::class)->names('cash_flow');
 
     Route::get('/get-sales-data', [DashboardController::class, 'getSalesData'])->name('getSalesData');
-    Route::get('showAttendence', [AttendenceController::class, 'showAttendence'])->name('showAttendence');
+    Route::get('show-attendance', [AttendenceController::class, 'showAttendence'])->name('showAttendence');
 
     Route::resource('user', UserController::class)->names('user');
 
@@ -181,17 +171,12 @@ Route::middleware('auth')->group(function () {
         return response()->json(['total_balance' => totalBalance()]);
     });
 
-
-
-    //Accounts
-    Route::prefix('accounts')->group(function () {
-        Route::resource('accounts', AccountsController::class)->names('accounts');
-        Route::get('balanceAdjustmentView', [AccountsController::class, 'balanceAdjustmentView'])->name('balanceAdjustmentView');
-        Route::post('balanceAdjustment', [AccountsController::class, 'balanceAdjustment'])->name('balanceAdjustment');
-
-        Route::get('balanceTransferView', [BalanceTansferController::class, 'balanceTransferView'])->name('balanceTransferView');
-        Route::post('balanceTransfer', [BalanceTansferController::class, 'balanceTransfer'])->name('balanceTransfer');
-    });
+    // Accounts (specific routes before resource)
+    Route::get('accounts/balance-adjustment', [AccountsController::class, 'balanceAdjustmentView'])->name('balanceAdjustmentView');
+    Route::post('accounts/balance-adjustment', [AccountsController::class, 'balanceAdjustment'])->name('balanceAdjustment');
+    Route::get('accounts/balance-transfer', [BalanceTansferController::class, 'balanceTransferView'])->name('balanceTransferView');
+    Route::post('accounts/balance-transfer', [BalanceTansferController::class, 'balanceTransfer'])->name('balanceTransfer');
+    Route::resource('accounts', AccountsController::class)->names('accounts');
 });
 
 require __DIR__ . '/auth.php';

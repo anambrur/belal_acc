@@ -1,0 +1,350 @@
+/**
+ * Global modern table styles for Belal Accounting
+ * Applies to all .table / DataTables inside .page-wrapper
+ */
+:root {
+    --mt-accent: #ff9f43;
+    --mt-accent-hover: #e68a39;
+    --mt-ink: #1f2937;
+    --mt-muted: #6b7280;
+    --mt-line: #e8ecf1;
+    --mt-soft: #f7f8fa;
+    --mt-head: #f3f5f8;
+    --mt-hover: #fffaf5;
+    --mt-radius: 12px;
+}
+
+/* ---------- Card wrappers around tables ---------- */
+.page-wrapper .card {
+    border: 1px solid var(--mt-line);
+    border-radius: var(--mt-radius);
+    box-shadow: none;
+}
+
+.page-wrapper .card .card-body {
+    padding: 1.15rem;
+}
+
+/* ---------- Base tables ---------- */
+.page-wrapper .table {
+    width: 100% !important;
+    margin-bottom: 0;
+    color: var(--mt-ink);
+    border-color: var(--mt-line);
+    font-variant-numeric: tabular-nums;
+}
+
+.page-wrapper .table > :not(caption) > * > * {
+    border-bottom-color: var(--mt-line);
+    padding: 0.85rem 0.9rem;
+    vertical-align: middle;
+}
+
+.page-wrapper .table thead th,
+.page-wrapper .table > thead > tr > th {
+    background: var(--mt-head) !important;
+    color: #374151 !important;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--mt-line) !important;
+    border-top: 0 !important;
+}
+
+.page-wrapper .table tbody td,
+.page-wrapper .table > tbody > tr > td {
+    color: var(--mt-ink);
+    border-color: var(--mt-line) !important;
+    background: #fff;
+}
+
+.page-wrapper .table tbody tr:hover > *,
+.page-wrapper .table-hover > tbody > tr:hover > * {
+    background-color: var(--mt-hover) !important;
+    --bs-table-accent-bg: var(--mt-hover);
+}
+
+.page-wrapper .table tfoot td,
+.page-wrapper .table > tfoot > tr > td,
+.page-wrapper .table > tfoot > tr > th {
+    background: var(--mt-soft) !important;
+    border-color: var(--mt-line) !important;
+    font-weight: 700;
+}
+
+/* Soften heavy bordered / striped defaults */
+.page-wrapper .table-bordered > :not(caption) > * {
+    border-width: 0;
+}
+
+.page-wrapper .table-bordered > :not(caption) > * > * {
+    border-width: 0 0 1px;
+}
+
+.page-wrapper .table-striped > tbody > tr:nth-of-type(odd) > * {
+    --bs-table-accent-bg: #fafbfc;
+    background-color: #fafbfc;
+}
+
+.page-wrapper .table-primary,
+.page-wrapper thead.table-primary th,
+.page-wrapper .table .table-primary {
+    background: var(--mt-head) !important;
+    color: #374151 !important;
+}
+
+/* ---------- Table responsive shell ---------- */
+.page-wrapper .table-responsive {
+    border: 1px solid var(--mt-line);
+    border-radius: 10px;
+    background: #fff;
+    overflow-x: auto;
+}
+
+.page-wrapper .card .table-responsive {
+    border: 0;
+    border-radius: 0;
+}
+
+/* When table sits directly in card-body, give it a framed look */
+.page-wrapper .card-body > .table-responsive {
+    border: 1px solid var(--mt-line);
+    border-radius: 10px;
+}
+
+/* ---------- DataTables chrome ---------- */
+.page-wrapper .dataTables_wrapper {
+    color: var(--mt-ink);
+}
+
+.page-wrapper .dataTables_wrapper .dataTables_length,
+.page-wrapper .dataTables_wrapper .dataTables_filter,
+.page-wrapper .dataTables_wrapper .dataTables_info,
+.page-wrapper .dataTables_wrapper .dataTables_paginate {
+    margin-bottom: 0.75rem;
+}
+
+.page-wrapper .dataTables_wrapper .dataTables_length label,
+.page-wrapper .dataTables_wrapper .dataTables_filter label {
+    color: var(--mt-muted);
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin-bottom: 0;
+}
+
+.page-wrapper .dataTables_wrapper .dataTables_length select {
+    min-height: 38px;
+    border-radius: 8px;
+    border: 1px solid #dbe1ea;
+    padding: 0.25rem 1.75rem 0.25rem 0.65rem;
+    color: var(--mt-ink);
+    background-color: #fff;
+}
+
+.page-wrapper .dataTables_wrapper .dataTables_filter input {
+    min-height: 38px;
+    border-radius: 8px !important;
+    border: 1px solid #dbe1ea !important;
+    padding: 0.4rem 0.75rem !important;
+    margin-left: 0.5rem;
+    color: var(--mt-ink);
+    background: #fff;
+}
+
+.page-wrapper .dataTables_wrapper .dataTables_filter input:focus {
+    border-color: var(--mt-accent) !important;
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(255, 159, 67, 0.2);
+}
+
+.page-wrapper .dataTables_wrapper .dataTables_info {
+    color: var(--mt-muted) !important;
+    font-size: 0.8125rem;
+    padding-top: 0.85rem !important;
+}
+
+.page-wrapper .dataTables_wrapper .dataTables_processing {
+    background: rgba(255, 255, 255, 0.92) !important;
+    border: 1px solid var(--mt-line) !important;
+    border-radius: 10px !important;
+    color: var(--mt-ink) !important;
+    font-weight: 600;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+/* DataTables nested table inside wrapper */
+.page-wrapper .dataTables_wrapper .table {
+    border-top: 1px solid var(--mt-line);
+}
+
+.page-wrapper .dataTables_wrapper .table thead th {
+    position: relative;
+}
+
+.page-wrapper table.dataTable thead .sorting:before,
+.page-wrapper table.dataTable thead .sorting:after,
+.page-wrapper table.dataTable thead .sorting_asc:before,
+.page-wrapper table.dataTable thead .sorting_asc:after,
+.page-wrapper table.dataTable thead .sorting_desc:before,
+.page-wrapper table.dataTable thead .sorting_desc:after {
+    opacity: 0.35;
+}
+
+/* ---------- Buttons (export / DT) ---------- */
+.page-wrapper .dt-buttons {
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+}
+
+.page-wrapper .dt-buttons .btn,
+.page-wrapper .buttons-html5,
+.page-wrapper .buttons-print {
+    background: #fff !important;
+    color: var(--mt-ink) !important;
+    border: 1px solid var(--mt-line) !important;
+    font-weight: 600 !important;
+    font-size: 12px !important;
+    border-radius: 8px !important;
+    padding: 6px 12px !important;
+    margin-right: 4px;
+    margin-bottom: 4px;
+}
+
+.page-wrapper .dt-buttons .btn:hover,
+.page-wrapper .buttons-html5:hover,
+.page-wrapper .buttons-print:hover {
+    background: #fff8f1 !important;
+    border-color: #f3e4d4 !important;
+    color: var(--mt-accent) !important;
+}
+
+/* ---------- Pagination (DataTables + Laravel) ---------- */
+.page-wrapper .pagination {
+    margin-bottom: 0;
+    gap: 0.25rem;
+}
+
+.page-wrapper .page-link,
+.page-wrapper .dataTables_wrapper .dataTables_paginate .paginate_button {
+    color: var(--mt-accent) !important;
+    background-color: #fff !important;
+    border: 1px solid var(--mt-line) !important;
+    border-radius: 8px !important;
+    min-width: 36px;
+    text-align: center;
+    font-weight: 600;
+    margin: 0 2px !important;
+}
+
+.page-wrapper .page-item.active .page-link,
+.page-wrapper .dataTables_wrapper .dataTables_paginate .paginate_button.current,
+.page-wrapper .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
+    color: #fff !important;
+    background-color: var(--mt-accent) !important;
+    border-color: var(--mt-accent) !important;
+}
+
+.page-wrapper .page-link:hover,
+.page-wrapper .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+    color: var(--mt-accent-hover) !important;
+    background-color: #fff8f1 !important;
+    border-color: #f3e4d4 !important;
+}
+
+.page-wrapper .page-item.disabled .page-link,
+.page-wrapper .dataTables_wrapper .dataTables_paginate .paginate_button.disabled,
+.page-wrapper .dataTables_wrapper .dataTables_paginate .paginate_button.disabled:hover {
+    color: #9ca3af !important;
+    background-color: #fff !important;
+    border-color: var(--mt-line) !important;
+}
+
+/* ---------- Common list page helpers (optional use) ---------- */
+.page-wrapper .list-card {
+    background: #fff;
+    border: 1px solid var(--mt-line);
+    border-radius: var(--mt-radius);
+    overflow: hidden;
+}
+
+.page-wrapper .list-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.9rem 1.15rem;
+    border-bottom: 1px solid var(--mt-line);
+    background: var(--mt-soft);
+}
+
+.page-wrapper .list-toolbar h6 {
+    margin: 0;
+    font-weight: 700;
+    color: var(--mt-ink);
+}
+
+.page-wrapper .list-body {
+    padding: 1rem 1.15rem 1.15rem;
+}
+
+.page-wrapper .filter-panel {
+    background: #fff;
+    border: 1px solid var(--mt-line);
+    border-radius: var(--mt-radius);
+    padding: 1rem 1.15rem;
+    margin-bottom: 1.25rem;
+}
+
+.page-wrapper .filter-panel .form-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--mt-muted);
+    margin-bottom: 0.35rem;
+}
+
+/* ---------- Action icon buttons in tables ---------- */
+.page-wrapper .table .action-btns,
+.page-wrapper .table .d-flex.align-center {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.page-wrapper .table .action-btns a,
+.page-wrapper .table .action-btns button {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    border: 1px solid var(--mt-line);
+    background: #fff;
+    color: var(--mt-ink);
+    text-decoration: none;
+}
+
+.page-wrapper .table .action-btns a:hover {
+    background: #fff8f1;
+    border-color: #f3e4d4;
+    color: var(--mt-accent);
+}
+
+/* ---------- Print friendliness ---------- */
+@media print {
+    .page-wrapper .table thead th {
+        background: #eee !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .page-wrapper .table-responsive {
+        border: 0;
+    }
+}

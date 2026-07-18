@@ -45,7 +45,7 @@
                         <li><a class="{{ Route::currentRouteName() === 'sell.index' ? 'active' : '' }}"
                                 href="{{ route('sell.index') }}">Sales List</a></li>
                         <li><a class="{{ Route::currentRouteName() === 'sell.create' ? 'active' : '' }}"
-                                href="{{ route('sell.create') }}">Sells Create</a></li>
+                                href="{{ route('sell.create') }}">Sales Create</a></li>
                         <li><a class="{{ Route::currentRouteName() === 'sellsReturn.index' ? 'active' : '' }}"
                                 href="{{ route('sellsReturn.index') }}">Sales Return List</a></li>
                         <li>
@@ -130,10 +130,7 @@
                                 href="{{ route('supplier.index') }}">Supplier List</a></li>
                         <li><a class="{{ Route::currentRouteName() == 'supplier.create' ? 'active' : '' }}"
                                 href="{{ route('supplier.create') }}">Add Supplier </a></li>
-                        <li><a href="userlist.html">User List</a></li>
-                        <li><a href="adduser.html">Add User</a></li>
-                        <li><a href="storelist.html">Store List</a></li>
-                        <li><a href="addstore.html">Add Store</a></li>
+                        
                     </ul>
                 </li>
 

@@ -4,22 +4,26 @@ namespace App\Http\Controllers;
 
 use Exception;
 use App\Models\Road;
-use App\Models\Sell;
 use App\Models\Payment;
 use App\Models\Accounts;
 use App\Models\Customer;
 use App\Models\Location;
-use App\Models\Purchase;
-use App\Models\SellsReturn;
 use Illuminate\Http\Request;
 use App\Models\PaymentMethod;
+use App\Services\CustomerLedgerService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 use Yajra\DataTables\Facades\DataTables;
 use Illuminate\Validation\ValidationException;
 
 class CustomerController extends Controller
 {
+    public function __construct(protected CustomerLedgerService $ledgerService)
+    {
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -30,95 +34,127 @@ class CustomerController extends Controller
         return view('customer.customerList', compact('roads', 'locations'));
     }
     /**
-     * Yajra data table.
+     * Yajra data table — server-side query with pre-aggregated joins (fast).
      */
     public function customerDataList(Request $request)
     {
-        $query = Customer::with(['sell' => function ($q) {
-            $q->groupBy('invoice_id');
-        }])->with('sellReturn', 'payment', 'road', 'location');
+        $sellAgg = DB::table('sells')
+            ->select('customer_id', DB::raw('SUM(total_price) as sell_total'))
+            ->groupBy('customer_id');
 
-        // Apply filters
-        if ($request->has('filter_road') && $request->filter_road != 'All Road') {
-            $query->where('road_id', $request->filter_road);
+        $returnAgg = DB::table('sells_returns')
+            ->select('customer_id', DB::raw('SUM(total_amount) as return_total'))
+            ->groupBy('customer_id');
+
+        $paymentAgg = DB::table('payments')
+            ->select('payable_id', DB::raw('SUM(amount) as payment_total'))
+            ->where('payable_type', Customer::class)
+            ->groupBy('payable_id');
+
+        $query = DB::table('customers')
+            ->leftJoin('roads', 'roads.id', '=', 'customers.road_id')
+            ->leftJoin('locations', 'locations.id', '=', 'customers.location_id')
+            ->leftJoinSub($sellAgg, 'sell_agg', 'sell_agg.customer_id', '=', 'customers.id')
+            ->leftJoinSub($returnAgg, 'return_agg', 'return_agg.customer_id', '=', 'customers.id')
+            ->leftJoinSub($paymentAgg, 'payment_agg', 'payment_agg.payable_id', '=', 'customers.id')
+            ->select([
+                'customers.id',
+                'customers.customer_name',
+                'customers.phone',
+                'customers.created_at',
+                'roads.name as road_name',
+                'locations.address as location_address',
+                DB::raw('COALESCE(sell_agg.sell_total, 0) as sell_total'),
+                DB::raw('COALESCE(return_agg.return_total, 0) as return_total'),
+                DB::raw('COALESCE(payment_agg.payment_total, 0) as payment_total'),
+                DB::raw('(COALESCE(sell_agg.sell_total, 0) - COALESCE(return_agg.return_total, 0) - COALESCE(payment_agg.payment_total, 0)) as due_total'),
+            ]);
+
+        if ($request->filled('filter_road') && $request->filter_road !== 'All Road') {
+            $query->where('customers.road_id', $request->filter_road);
         }
 
-        if ($request->has('filter_address') && $request->filter_address != 'All Address') {
-            $query->where('location_id', $request->filter_address);
+        if ($request->filled('filter_address') && $request->filter_address !== 'All Address') {
+            $query->where('customers.location_id', $request->filter_address);
         }
 
-        $customers = $query->orderBy('created_at', 'DESC')->get();
+        return DataTables::of($query)
+            ->orderColumn('customer_name', 'customers.customer_name $1')
+            ->orderColumn('phone', 'customers.phone $1')
+            ->orderColumn('road_name', 'roads.name $1')
+            ->orderColumn('location_address', 'locations.address $1')
+            ->orderColumn('sell_total', 'sell_total $1')
+            ->orderColumn('return_total', 'return_total $1')
+            ->orderColumn('payment_total', 'payment_total $1')
+            ->orderColumn('due_total', 'due_total $1')
+            ->orderColumn('created_at', 'customers.created_at $1')
+            ->filterColumn('customer_name', function ($q, $keyword) {
+                $q->where('customers.customer_name', 'like', "%{$keyword}%");
+            })
+            ->filterColumn('phone', function ($q, $keyword) {
+                $q->where('customers.phone', 'like', "%{$keyword}%");
+            })
+            ->filterColumn('road_name', function ($q, $keyword) {
+                $q->where('roads.name', 'like', "%{$keyword}%");
+            })
+            ->filterColumn('location_address', function ($q, $keyword) {
+                $q->where('locations.address', 'like', "%{$keyword}%");
+            })
+            // Second arg must be false: turns OFF Yajra auto-search (which wrongly uses customers.road_name)
+            ->filter(function ($q) use ($request) {
+                $search = trim((string) $request->input('search.value', ''));
+                if ($search === '') {
+                    return;
+                }
 
-
-
-
-        $data = [];
-        foreach ($customers as $c) {
-            // dd($c);
-            $d = ['customer' => ['id' => $c->id, 'customer_name' => $c->customer_name, 'phone' => $c->phone, 'road' => $c->road->name, 'location' => $c->location->address]];
-            $d['sell'] = 0;
-            foreach ($c->sell as $s) {
-                $d['sell'] += $s->total_price;
-            }
-            $d['return'] = 0;
-            foreach ($c->sellReturn as $s) {
-                $d['return'] += $s->total_amount;
-            }
-            $d['payment'] = 0;
-            foreach ($c->payment as $s) {
-                $d['payment'] += $s->amount;
-            }
-            $data[] = $d;
-        }
-
-
-        // <a href="' . route('customer.show', $customerId) . '">
-        $data = $data;
-        $sl = 0;
-        return Datatables::of($data)
-            ->addIndexColumn()
+                $like = '%' . $search . '%';
+                $q->where(function ($inner) use ($like) {
+                    $inner->where('customers.customer_name', 'like', $like)
+                        ->orWhere('customers.phone', 'like', $like)
+                        ->orWhere('roads.name', 'like', $like)
+                        ->orWhere('locations.address', 'like', $like);
+                });
+            }, false)
             ->addColumn('action', function ($row) {
-                $customerId = $row['customer']['id'];
-                $actions =
-                    '<div class="d-flex align-center ">
-                    
-                    <a href="' . route('customer.show', $customerId) . '">
-                        <span><i class="fa-solid fa-eye me-3"></i></span>
-                    </a> <a href="' . route('customer.edit', $customerId) . '">
-                        <span><i class="fa-solid fa-pen "></i></span>
-                    </a>
-                    
-                    <form action="' . route('customer.destroy', $customerId) . '" method="post">
-                        <input type="hidden" name ="_token" value="' . csrf_token() . '"/>
-                        <input type="hidden" name ="_method" value="delete"/>
-                        <button onclick="return confirm(\'Are you sure you want to delete?\')" class="btn"><i class="fas fa-trash"
-                        style="color: #FF0000;"></i></button>
-                    </form>
-                </div>';
-                return $actions;
+                $customerId = $row->id;
+                return
+                    '<div class="action-btns">
+                        <a href="' . route('customer.show', $customerId) . '" title="Ledger">
+                            <i class="fa-solid fa-eye"></i>
+                        </a>
+                        <a href="' . route('customer.edit', $customerId) . '" title="Edit">
+                            <i class="fa-solid fa-pen"></i>
+                        </a>
+                        <form action="' . route('customer.destroy', $customerId) . '" method="post" class="d-inline">
+                            <input type="hidden" name="_token" value="' . csrf_token() . '"/>
+                            <input type="hidden" name="_method" value="delete"/>
+                            <button onclick="return confirm(\'Are you sure you want to delete?\')"
+                                class="border-0 text-danger bg-transparent p-0" type="submit" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
+                    </div>';
             })
-
-
-
-            ->addColumn('due', function ($row) {
-                return $row['sell'] - $row['payment'];
-            })
-
             ->addColumn('actionPayment', function ($row) {
-                $customerId = $row['customer']['id'];
-                return '<a href="' . route('customerPayment', $customerId) . '"><span
-                class="badges bg-secondary">Payment</span></a>';
-            })
-
-            ->addColumn('sl', function () use (&$sl) {
-                return ++$sl;
+                return '<a class="payment-link" href="' . route('customerPayment', $row->id) . '">
+                    <i class="fa fa-money-bill-wave"></i> Payment
+                </a>';
             })
             ->addColumn('status', function ($row) {
-                $status = $row['sell'] - $row['payment'] > 0 ? 'btn-danger btn-sm' : 'btn-success btn-sm';
-                return '<button class="btn ' . $status . '">Status</button>';
+                $due = (float) $row->due_total;
+                if ($due > 0) {
+                    return '<span class="badge bg-danger">Due</span>';
+                }
+                if ($due < 0) {
+                    return '<span class="badge bg-info text-dark">Advance</span>';
+                }
+                return '<span class="badge bg-success">Cleared</span>';
             })
-            ->rawColumns(['actionPayment', 'due', 'action', 'sl', 'status'])
-
+            ->editColumn('sell_total', fn ($row) => number_format((float) $row->sell_total, 2))
+            ->editColumn('return_total', fn ($row) => number_format((float) $row->return_total, 2))
+            ->editColumn('payment_total', fn ($row) => number_format((float) $row->payment_total, 2))
+            ->editColumn('due_total', fn ($row) => number_format((float) $row->due_total, 2))
+            ->rawColumns(['actionPayment', 'action', 'status'])
             ->make(true);
     }
 
@@ -154,96 +190,110 @@ class CustomerController extends Controller
     }
 
     /**
-     * Display the specified resource.
+     * Display the customer ledger.
      */
-
-     public function show(Request $request, $customerId)
-     {
+    public function show(Request $request, $customerId)
+    {
         try {
-            $customer = Customer::with('location', 'road')->where('id', $customerId)->first();
+            $customer = Customer::with('location', 'road')->find($customerId);
 
             if (!$customer) {
                 throw new Exception('Customer not found');
             }
 
-            $startDate = $request->input('start_date', now()->subYear()->format('Y-m-d'));
-            $endDate   = $request->input('end_date', now()->format('Y-m-d'));
-            $perPage   = (int) $request->input('per_page', 50);
-            $currentPage = (int) $request->input('page', 1);
-
-            // Fetch ALL records within date range
-            $salesData = Sell::where('customer_id', $customerId)
-                ->whereBetween('date', [$startDate, $endDate])
-                ->groupBy('invoice_id')
-                ->get();
-
-
-            $returnData = SellsReturn::where('customer_id', $customerId)
-                ->whereBetween('date', [$startDate, $endDate])
-                ->get();
-
-            $paymentData = Payment::where('payable_id', $customerId)
-                ->where('payable_type', Customer::class)
-                ->whereBetween('date', [$startDate, $endDate])
-                ->select('id', 'accounts_id', 'amount', 'date', 'payment_for')
-                ->get();
-
-            // Merge and sort ALL records by date
-            $customer_ledger = array_merge(
-                $salesData->all(),
-                $returnData->all(),
-                $paymentData->all()
-            );
-
-            usort($customer_ledger, fn($a, $b) => strtotime($a['date']) - strtotime($b['date']));
-
-            // Calculate running balance on ALL records BEFORE pagination
-            $runningBalance = 0;
-            foreach ($customer_ledger as &$entry) {
-                if (isset($entry->total_price) && $entry->total_price > 0) {
-                    $runningBalance += $entry->total_price;
-                } elseif (isset($entry->total_amount) && $entry->total_amount > 0) {
-                    $runningBalance -= $entry->total_amount;
-                } elseif (isset($entry->amount) && $entry->amount > 0) {
-                    $runningBalance -= $entry->amount;
-                }
-                $entry->running_balance = $runningBalance;
+            $startDate = $request->filled('start_date') ? $request->input('start_date') : null;
+            $endDate = $request->filled('end_date') ? $request->input('end_date') : null;
+            $perPage = max(1, (int) $request->input('per_page', 50));
+            if (!in_array($perPage, [25, 50, 100, 200], true)) {
+                $perPage = 50;
             }
-            unset($entry);
 
-            $totalRecords    = count($customer_ledger);
-            $offset          = ($currentPage - 1) * $perPage;
-            $paginatedLedger = array_slice($customer_ledger, $offset, $perPage);
+            $ledger = $this->ledgerService->build((int) $customerId, $startDate, $endDate);
+            $entries = $ledger['entries'];
+            $totalRecords = $entries->count();
+            $lastPage = max(1, (int) ceil($totalRecords / $perPage));
 
-            $ledgerPaginator = new \Illuminate\Pagination\LengthAwarePaginator(
-                $paginatedLedger,
+            // Default to last page so newest ASC entries are visible
+            $currentPage = $request->has('page')
+                ? max(1, (int) $request->input('page'))
+                : $lastPage;
+            $currentPage = min($currentPage, $lastPage);
+
+            $offset = ($currentPage - 1) * $perPage;
+            $paginatedEntries = $entries->slice($offset, $perPage)->values();
+
+            $queryParams = array_filter([
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'per_page' => $perPage,
+            ], fn ($v) => $v !== null && $v !== '');
+
+            $ledgerPaginator = new LengthAwarePaginator(
+                $paginatedEntries,
                 $totalRecords,
                 $perPage,
                 $currentPage,
                 [
-                    'path'  => \Illuminate\Pagination\Paginator::resolveCurrentPath(),
-                    'query' => $request->query()
+                    'path' => Paginator::resolveCurrentPath(),
+                    'query' => $queryParams,
                 ]
             );
 
-            // Totals from FILTERED data only
-            $debitTotal  = $salesData->sum('total_price');
-            $creditTotal = $returnData->sum('total_amount') + $paymentData->sum('amount');
-            $dueTotal    = $debitTotal - $creditTotal;
-
-            return view('customer.cus_ledger', compact(
-                'customer',
-                'ledgerPaginator',
-                'debitTotal',
-                'creditTotal',
-                'dueTotal',
-                'startDate',
-                'endDate',
-                'perPage'
-            ));
+            return view('customer.cus_ledger', [
+                'customer' => $customer,
+                'ledgerPaginator' => $ledgerPaginator,
+                'openingBalance' => $ledger['openingBalance'],
+                'debitTotal' => $ledger['debitTotal'],
+                'creditTotal' => $ledger['creditTotal'],
+                'dueTotal' => $ledger['closingBalance'],
+                'isFiltered' => $ledger['isFiltered'],
+                'startDate' => $startDate,
+                'endDate' => $endDate,
+                'perPage' => $perPage,
+            ]);
         } catch (Exception $e) {
             return redirect()->route('customer.index')
                 ->with('error', 'Customer not found or an error occurred.');
+        }
+    }
+
+    /**
+     * Download customer ledger as PDF.
+     */
+    public function downloadLedgerPdf(Request $request, $customer)
+    {
+        try {
+            $customerId = (int) $customer;
+            $customerModel = Customer::with('location', 'road')->find($customerId);
+
+            if (!$customerModel) {
+                throw new Exception('Customer not found');
+            }
+
+            $startDate = $request->filled('start_date') ? $request->input('start_date') : null;
+            $endDate = $request->filled('end_date') ? $request->input('end_date') : null;
+
+            $ledger = $this->ledgerService->build($customerId, $startDate, $endDate);
+
+            $pdf = Pdf::loadView('customer.cus_ledger_pdf', [
+                'customer' => $customerModel,
+                'entries' => $ledger['entries'],
+                'openingBalance' => $ledger['openingBalance'],
+                'debitTotal' => $ledger['debitTotal'],
+                'creditTotal' => $ledger['creditTotal'],
+                'dueTotal' => $ledger['closingBalance'],
+                'isFiltered' => $ledger['isFiltered'],
+                'startDate' => $startDate,
+                'endDate' => $endDate,
+                'generatedAt' => now(),
+            ])->setPaper('a4', 'portrait');
+
+            $filename = 'customer-' . $customerId . '-ledger-' . now()->format('Y-m-d') . '.pdf';
+
+            return $pdf->download($filename);
+        } catch (Exception $e) {
+            return redirect()->route('customer.index')
+                ->with('error', 'Failed to generate ledger PDF.');
         }
     }
 
@@ -292,43 +342,38 @@ class CustomerController extends Controller
         return redirect()->route('customer.index');
     }
     /**
-     * make payment the specified resource from storage.
+     * Show the make-payment page for a customer.
      */
     public function customerPayment($id)
     {
-        $customers = Customer::with(['sell' => function ($q) {
-            $q->groupBy('invoice_id');
-        }])->with('sellReturn', 'payment', 'location')
-            ->orderBy('created_at', 'DESC')
-            ->where('id', $id)
-            ->get();
+        $customer = Customer::with(['location'])
+            ->withSum('sell as sell_total', 'total_price')
+            ->withSum('sellReturn as return_total', 'total_amount')
+            ->withSum('payment as payment_total', 'amount')
+            ->findOrFail($id);
 
-        // dd($customers);
+        $sell = (float) ($customer->sell_total ?? 0);
+        $return = (float) ($customer->return_total ?? 0);
+        $payment = (float) ($customer->payment_total ?? 0);
+        $dueAmount = $sell - $return - $payment;
 
+        $cus_pay_data = [[
+            'customer' => [
+                'id' => $customer->id,
+                'customer_name' => $customer->customer_name,
+                'phone' => $customer->phone,
+                'email' => $customer->email,
+                'address' => $customer->location?->address ?? '',
+                'photo' => $customer->photo,
+            ],
+            'sell' => $sell,
+            'return' => $return,
+            'payment' => $payment,
+        ]];
 
-        $cus_pay_data = [];
-        foreach ($customers as $c) {
-            // dd($c);
-            $d = ['customer' => ['id' => $c->id, 'customer_name' => $c->customer_name, 'phone' => $c->phone, 'email' => $c->email, 'address' => $c->location->address, 'photo' => $c->photo]];
-            $d['sell'] = 0;
-            foreach ($c->sell as $s) {
-                $d['sell'] += $s->total_price;
-            }
-            $d['return'] = 0;
-            foreach ($c->sellReturn as $s) {
-                $d['return'] += $s->total_amount;
-            }
-            $d['payment'] = 0;
-            foreach ($c->payment as $s) {
-                $d['payment'] += $s->amount;
-            }
-            $cus_pay_data[] = $d;
-        }
-        // dd($cus_pay_data);
-        $dueAmount = ($cus_pay_data[0]['sell']) - ($cus_pay_data[0]['payment'] + $cus_pay_data[0]['return']);
-        // dd($dueAmount);
         $paymentMethod = PaymentMethod::all();
         $accounts = Accounts::all();
+
         return view('makePayment.customerPayment', compact('cus_pay_data', 'dueAmount', 'paymentMethod', 'accounts'));
     }
 
