@@ -9,7 +9,7 @@
                 </li>
                 <li class="submenu">
                     <a class="{{ Route::current()->getPrefix() === '/product' ? 'active' : '' }}"
-                        href="javascript:void(0);"><i class="fa-brands fa-product-hunt"></i><span>
+                        href="javascript:void(0);"><i class="fa-solid fa-box"></i><span>
                             Product</span>
                         <span class="menu-arrow"></span></a>
                     <ul @if (Route::current()->getPrefix() === '/product') style="display:block!important;" @endif>
@@ -59,7 +59,7 @@
 
                 <li class="submenu">
                     <a class="{{ Route::current()->getPrefix() === '/purchase' ? 'active' : '' }}"
-                        href="javascript:void(0);"><i class="fa-brands fa-product-hunt"></i><span>
+                        href="javascript:void(0);"><i class="fa-solid fa-truck"></i><span>
                             Purchase</span>
                         <span class="menu-arrow"></span></a>
                     <ul @if (Route::current()->getPrefix() === '/purchase') style="display:block!important;" @endif>
@@ -74,7 +74,7 @@
 
                 <li class="submenu">
                     <a class="{{ Route::current()->getPrefix() === '/expense' ? 'active' : '' }}"
-                        href="javascript:void(0);"><i class="fa-solid fa-money-bill"></i><span>
+                        href="javascript:void(0);"><i class="fa-solid fa-receipt"></i><span>
                             Expense</span>
                         <span class="menu-arrow"></span></a>
                     <ul>
@@ -94,7 +94,7 @@
                     href="{{ route('paymentMethod.index') }}">Payment Settings</a></li> --}}
                 <li class="submenu">
                     <a class="{{ Route::current()->getPrefix() === '/accounts' ? 'active' : '' }}"
-                        href="javascript:void(0);"><i class="fa-solid fa-money-bill"></i><span>
+                        href="javascript:void(0);"><i class="fa-solid fa-building-columns"></i><span>
                             Acccounting</span>
                         <span class="menu-arrow"></span></a>
                     <ul>
@@ -118,7 +118,7 @@
 
                 <li class="submenu">
                     <a class="{{ Route::current()->getPrefix() === '/people' ? 'active' : '' }}"
-                        href="javascript:void(0);"><i class="fa-solid fa-person"></i><span>
+                        href="javascript:void(0);"><i class="fa-solid fa-users"></i><span>
                             People</span>
                         <span class="menu-arrow"></span></a>
                     <ul>
@@ -139,25 +139,30 @@
 
                 <li class="submenu">
                     <a class="{{ Route::current()->getPrefix() === '/profit' ? 'active' : '' }}"
-                        href="javascript:void(0);"><i class="fa-regular fa-flag"></i><span>
-                            Report</span>
+                        href="javascript:void(0);"><i class="fa-solid fa-chart-column"></i><span>
+                            Reports</span>
                         <span class="menu-arrow"></span></a>
                     <ul>
                         <li><a class="{{ Route::currentRouteName() === 'profitCalculation' ? 'active' : '' }}"
                                 href="{{ route('profitCalculation') }}">Daily Report</a></li>
                         <li><a class="{{ Route::currentRouteName() === 'dateFilter' ? 'active' : '' }} d-none"
                                 href="{{ route('profitCalculation') }}">Profit report</a></li>
-
+                        <li><a class="{{ Route::currentRouteName() === 'profitLossList' ? 'active' : '' }}"
+                                href="{{ route('profitLossList') }}">Profit &amp; Loss</a></li>
+                        <li><a class="{{ Route::currentRouteName() === 'sellsReportList' ? 'active' : '' }}"
+                                href="{{ route('sellsReportList') }}">Sales Report</a></li>
+                        <li><a class="{{ Route::currentRouteName() === 'purchaseReportList' ? 'active' : '' }}"
+                                href="{{ route('purchaseReportList') }}">Purchases Report</a></li>
+                        <li><a class="{{ Route::currentRouteName() === 'customerDueList' ? 'active' : '' }}"
+                                href="{{ route('customerDueList') }}">Customer Due Report</a></li>
+                        <li><a class="{{ Route::currentRouteName() === 'supplierDueList' ? 'active' : '' }}"
+                                href="{{ route('supplierDueList') }}">Supplier Due Report</a></li>
+                        <li><a class="{{ Route::currentRouteName() === 'collectionList' ? 'active' : '' }}"
+                                href="{{ route('collectionList') }}">Collections Report</a></li>
+                        <li><a class="{{ Route::currentRouteName() === 'expenseReportList' ? 'active' : '' }}"
+                                href="{{ route('expenseReportList') }}">Expense Report</a></li>
                         <li><a class="{{ Route::currentRouteName() === 'balance_sheet_view' ? 'active' : '' }}"
                                 href="{{ route('balance_sheet_view') }}">Balance Sheet</a></li>
-                        <li><a class="{{ Route::currentRouteName() === 'collectionList' ? 'active' : '' }}"
-                                href="{{ route('collectionList') }}">Collection Report</a></li>
-                        <li><a class="{{ Route::currentRouteName() === 'sellsReportList' ? 'active' : '' }}"
-                                href="{{ route('sellsReportList') }}">Sell Report</a></li>
-                        <li><a class="{{ Route::currentRouteName() === 'purchaseReportList' ? 'active' : '' }}"
-                                href="{{ route('purchaseReportList') }}">Purchase Report</a></li>
-
-
                     </ul>
                 </li>
 
@@ -165,8 +170,8 @@
 
                 <li class="submenu">
                     <a class="{{ Route::current()->getPrefix() === '/loan' ? 'active' : '' }}"
-                        href="javascript:void(0);"><i class="fa-regular fa-flag"></i><span>
-                            Loan</span>
+                        href="javascript:void(0);"><i class="fa-solid fa-handshake"></i><span>
+                            Loans</span>
                         <span class="menu-arrow"></span></a>
                     <ul>
                         <li><a class="{{ Route::currentRouteName() === 'loan.index' ? 'active' : '' }}"
@@ -178,20 +183,8 @@
                 </li>
 
 
-
                 <li class="submenu">
-                    <a href="javascript:void(0);"><i class="fa-solid fa-user"></i><span>
-                            Attendence</span>
-                        <span class="menu-arrow"></span></a>
-                    <ul>
-                        <li><a class="{{ Route::currentRouteName() === 'user.create' ? 'active' : '' }}"
-                                href="{{ route('showAttendence') }}">Show Attendence </a></li>
-                        <li><a class="{{ Route::currentRouteName() === 'user.index' ? 'active' : '' }}"
-                                href="{{ route('user.index') }}">Users List</a></li>
-                    </ul>
-                </li>
-                <li class="submenu">
-                    <a href="javascript:void(0);"><i class="fa-solid fa-user"></i><span>
+                    <a href="javascript:void(0);"><i class="fa-solid fa-user-gear"></i><span>
                             Users</span>
                         <span class="menu-arrow"></span></a>
                     <ul>
@@ -210,7 +203,8 @@
                             Settings</span>
                         <span class="menu-arrow"></span></a>
                     <ul>
-                        
+                        <li><a class="{{ Route::currentRouteName() === 'store.edit' ? 'active' : '' }}"
+                                href="{{ route('store.edit') }}">Store Settings</a></li>
                         <li><a class="{{ Route::currentRouteName() === 'location.index' ? 'active' : '' }}"
                                 href="{{ route('location.index') }}">Location Settings</a></li>
                         <li><a class="{{ Route::currentRouteName() === 'road.index' ? 'active' : '' }}"

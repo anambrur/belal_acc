@@ -5,19 +5,104 @@
     <meta charset="utf-8">
     <title>Customer Ledger — {{ $customer->customer_name }}</title>
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             font-family: DejaVu Sans, sans-serif;
             font-size: 11px;
-            color: #222;
+            color: #1a1a1a;
+            margin: 0;
+            padding: 24px;
         }
 
-        h1 {
-            font-size: 18px;
-            margin: 0 0 4px;
+        .invoice-header {
+            width: 100%;
+            border-bottom: 2px solid #1e3a5f;
+            padding-bottom: 14px;
+            margin-bottom: 18px;
         }
 
-        .meta {
+        .invoice-header td {
+            vertical-align: top;
+        }
+
+        .logo {
+            max-height: 64px;
+            max-width: 140px;
+        }
+
+        .store-name {
+            font-size: 20px;
+            font-weight: bold;
+            color: #1e3a5f;
+            margin: 0 0 2px;
+        }
+
+        .store-meta {
+            font-size: 10px;
+            color: #444;
+            line-height: 1.55;
+            margin: 0;
+        }
+
+        .doc-title-row {
+            width: 100%;
             margin-bottom: 16px;
+        }
+
+        .doc-title-row td {
+            vertical-align: middle;
+        }
+
+        .doc-badge {
+            display: inline-block;
+            background: #1e3a5f;
+            color: #fff;
+            font-size: 13px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            padding: 8px 14px;
+        }
+
+        .doc-meta {
+            text-align: right;
+            font-size: 10px;
+            color: #555;
+            line-height: 1.6;
+        }
+
+        .bill-to {
+            width: 100%;
+            margin-bottom: 16px;
+            border: 1px solid #d0d7de;
+            background: #f6f8fa;
+        }
+
+        .bill-to td {
+            padding: 10px 12px;
+            vertical-align: top;
+        }
+
+        .bill-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: #1e3a5f;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .bill-name {
+            font-size: 13px;
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+
+        .bill-detail {
+            font-size: 10px;
+            color: #444;
             line-height: 1.5;
         }
 
@@ -28,14 +113,18 @@
         }
 
         .summary td {
-            border: 1px solid #ccc;
-            padding: 8px;
-            width: 25%;
+            border: 1px solid #d0d7de;
+            padding: 10px 8px;
+            text-align: center;
+            background: #fff;
         }
 
         .summary .label {
-            font-size: 10px;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
             color: #666;
+            margin-bottom: 4px;
         }
 
         .summary .value {
@@ -46,17 +135,33 @@
         table.ledger {
             width: 100%;
             border-collapse: collapse;
-        }
-
-        table.ledger th,
-        table.ledger td {
-            border: 1px solid #ccc;
-            padding: 6px 8px;
+            margin-bottom: 14px;
         }
 
         table.ledger th {
-            background: #e9ecef;
+            background: #1e3a5f;
+            color: #fff;
+            font-size: 10px;
+            font-weight: bold;
             text-align: left;
+            padding: 8px;
+            border: 1px solid #1e3a5f;
+        }
+
+        table.ledger td {
+            border: 1px solid #d0d7de;
+            padding: 7px 8px;
+            font-size: 10px;
+        }
+
+        table.ledger tbody tr:nth-child(even) td {
+            background: #f8fafc;
+        }
+
+        table.ledger tfoot td {
+            background: #eef2f7;
+            font-weight: bold;
+            border-top: 2px solid #1e3a5f;
         }
 
         .text-end {
@@ -76,31 +181,90 @@
         }
 
         .footer {
-            margin-top: 18px;
+            margin-top: 20px;
+            padding-top: 10px;
+            border-top: 1px solid #d0d7de;
             font-size: 9px;
             color: #666;
+            line-height: 1.5;
+        }
+
+        .footer-store {
+            font-weight: bold;
+            color: #1e3a5f;
         }
     </style>
 </head>
 
 <body>
-    <h1>Customer Ledger</h1>
-    <div class="meta">
-        <strong>{{ $customer->customer_name }}</strong><br>
-        Mobile: {{ $customer->phone }}<br>
-        Address: {{ $customer->road->name ?? '—' }}, {{ $customer->location->address ?? '—' }}<br>
-        Date Range:
-        @if ($isFiltered)
-            {{ $startDate ? \Carbon\Carbon::parse($startDate)->format('d M Y') : '…' }}
-            —
-            {{ $endDate ? \Carbon\Carbon::parse($endDate)->format('d M Y') : '…' }}
-        @else
-            All time
-        @endif
-        <br>
-        Generated: {{ $generatedAt->format('d M Y H:i') }}
-    </div>
+    @php
+        $storeName = $store->store_name ?? 'Store';
+        $logoPath = $store?->logo_path ?? public_path('assets/img/anamsLogo.png');
+    @endphp
 
+    {{-- Store header (invoice style) --}}
+    <table class="invoice-header">
+        <tr>
+            <td width="28%">
+                @if (file_exists($logoPath))
+                    <img class="logo" src="{{ $logoPath }}" alt="{{ $storeName }}">
+                @endif
+            </td>
+            <td width="72%" style="text-align: right;">
+                <p class="store-name">{{ $storeName }}</p>
+                <p class="store-meta">
+                    @if (!empty($store?->owner_name))
+                        {{ $store->owner_name }}<br>
+                    @endif
+                    @if (!empty($store?->phone))
+                        Mobile: {{ $store->phone }}<br>
+                    @endif
+                    @if (!empty($store?->email))
+                        Email: {{ $store->email }}<br>
+                    @endif
+                    @if (!empty($store?->full_address))
+                        {{ $store->full_address }}
+                    @endif
+                </p>
+            </td>
+        </tr>
+    </table>
+
+    {{-- Document title --}}
+    <table class="doc-title-row">
+        <tr>
+            <td width="50%">
+                <span class="doc-badge">CUSTOMER LEDGER</span>
+            </td>
+            <td width="50%" class="doc-meta">
+                Generated: {{ $generatedAt->format('d M Y H:i') }}<br>
+                Period:
+                @if ($isFiltered)
+                    {{ $startDate ? \Carbon\Carbon::parse($startDate)->format('d M Y') : '…' }}
+                    —
+                    {{ $endDate ? \Carbon\Carbon::parse($endDate)->format('d M Y') : '…' }}
+                @else
+                    All time
+                @endif
+            </td>
+        </tr>
+    </table>
+
+    {{-- Bill To --}}
+    <table class="bill-to">
+        <tr>
+            <td>
+                <div class="bill-label">Bill To</div>
+                <div class="bill-name">{{ $customer->customer_name }}</div>
+                <div class="bill-detail">
+                    Mobile: {{ $customer->phone }}<br>
+                    Address: {{ $customer->road->name ?? '—' }}, {{ $customer->location->address ?? '—' }}
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    {{-- KPI summary --}}
     <table class="summary">
         <tr>
             @if ($isFiltered)
@@ -128,15 +292,16 @@
         </tr>
     </table>
 
+    {{-- Ledger table --}}
     <table class="ledger">
         <thead>
             <tr>
-                <th>#</th>
-                <th>Date</th>
-                <th>Operation</th>
-                <th class="text-end">Debit</th>
-                <th class="text-end">Credit</th>
-                <th class="text-end">Balance</th>
+                <th width="6%">#</th>
+                <th width="14%">Date</th>
+                <th width="36%">Operation</th>
+                <th width="14%" class="text-end">Debit</th>
+                <th width="14%" class="text-end">Credit</th>
+                <th width="16%" class="text-end">Balance</th>
             </tr>
         </thead>
         <tbody>
@@ -195,7 +360,8 @@
     </table>
 
     <div class="footer">
-        Formula: Due = Sales − Returns − Payments. Positive balance means customer owes.
+        <span class="footer-store">{{ $storeName }}</span><br>
+        {{ $store?->invoice_footer ?? 'Formula: Due = Sales − Returns − Payments. Positive balance means customer owes.' }}
     </div>
 </body>
 

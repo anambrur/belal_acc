@@ -8,6 +8,7 @@ use App\Models\Payment;
 use App\Models\Accounts;
 use App\Models\Customer;
 use App\Models\Location;
+use App\Models\Store;
 use Illuminate\Http\Request;
 use App\Models\PaymentMethod;
 use App\Services\CustomerLedgerService;
@@ -286,6 +287,7 @@ class CustomerController extends Controller
                 'startDate' => $startDate,
                 'endDate' => $endDate,
                 'generatedAt' => now(),
+                'store' => Store::current(),
             ])->setPaper('a4', 'portrait');
 
             $filename = 'customer-' . $customerId . '-ledger-' . now()->format('Y-m-d') . '.pdf';

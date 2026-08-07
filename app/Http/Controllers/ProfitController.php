@@ -11,6 +11,8 @@ use App\Models\Loan;
 use App\Models\Location;
 use App\Models\Supplier;
 use App\Models\SellsReturn;
+use App\Services\PurchaseReportService;
+use App\Services\SellReportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -193,40 +195,11 @@ class ProfitController extends Controller
     }
 
 
-    public function sellsReport(Request $request)
+    public function sellsReport(Request $request, SellReportService $sellReportService)
     {
-        $query = DB::table('sells')
-            ->leftJoin('customers', 'customers.id', '=', 'sells.customer_id')
-            ->leftJoin('locations', 'locations.id', '=', 'customers.location_id')
-            ->select([
-                'sells.id',
-                'sells.invoice_id',
-                'sells.customer_id',
-                'sells.total_price',
-                'sells.paid_amount',
-                'sells.total_discount',
-                'sells.date',
-                'sells.location_id',
-                'sells.created_at',
-                'customers.customer_name',
-                'locations.address as location_address',
-                DB::raw('(sells.total_price - sells.paid_amount) as due_amount'),
-            ]);
-
-        if ($request->filled('filter_customer') && $request->filter_customer !== 'All Customer') {
-            $query->where('sells.customer_id', $request->filter_customer);
-        }
-
-        if ($request->filled('filter_address') && $request->filter_address !== 'All Address') {
-            $query->where('sells.location_id', $request->filter_address);
-        }
-
-        if ($request->filled('date_range')) {
-            $dates = explode(' - ', $request->date_range);
-            if (count($dates) === 2) {
-                $query->whereBetween('sells.date', [trim($dates[0]), trim($dates[1])]);
-            }
-        }
+        $query = $sellReportService->baseQuery();
+        $sellReportService->applyFilters($query, $request);
+        $summary = $sellReportService->totals($query);
 
         return DataTables::of($query)
             ->orderColumn('customer_name', 'customers.customer_name $1')
@@ -234,33 +207,11 @@ class ProfitController extends Controller
             ->orderColumn('invoice_id', 'sells.invoice_id $1')
             ->orderColumn('date', 'sells.date $1, sells.id $1')
             ->orderColumn('total_price', 'sells.total_price $1')
+            ->orderColumn('total_discount', 'sells.total_discount $1')
             ->orderColumn('paid_amount', 'sells.paid_amount $1')
             ->orderColumn('due_amount', 'due_amount $1')
-            ->filterColumn('customer_name', function ($q, $keyword) {
-                $q->where('customers.customer_name', 'like', "%{$keyword}%");
-            })
-            ->filterColumn('location_address', function ($q, $keyword) {
-                $q->where('locations.address', 'like', "%{$keyword}%");
-            })
-            ->filterColumn('invoice_id', function ($q, $keyword) {
-                $q->where('sells.invoice_id', 'like', "%{$keyword}%");
-            })
-            ->filterColumn('date', function ($q, $keyword) {
-                $q->where('sells.date', 'like', "%{$keyword}%");
-            })
-            ->filter(function ($q) use ($request) {
-                $search = trim((string) $request->input('search.value', ''));
-                if ($search === '') {
-                    return;
-                }
-
-                $like = '%' . $search . '%';
-                $q->where(function ($inner) use ($like) {
-                    $inner->where('customers.customer_name', 'like', $like)
-                        ->orWhere('locations.address', 'like', $like)
-                        ->orWhere('sells.invoice_id', 'like', $like)
-                        ->orWhere('sells.date', 'like', $like);
-                });
+            ->filter(function () {
+                // Filters (including search) already applied via SellReportService.
             }, false)
             ->addColumn('action', function ($row) {
                 return
@@ -274,16 +225,74 @@ class ProfitController extends Controller
                     </div>';
             })
             ->addColumn('status', function ($row) {
-                $due = (float) $row->due_amount;
-                if ($due > 0) {
-                    return '<span class="px-2 py-1 border rounded text-danger">Unpaid</span>';
-                }
-                return '<span class="px-2 py-1 border rounded text-success">Paid</span>';
+                return $this->paymentStatusBadge(
+                    (float) $row->paid_amount,
+                    (float) $row->total_price
+                );
             })
             ->editColumn('total_price', fn ($row) => number_format((float) $row->total_price, 2))
+            ->editColumn('total_discount', fn ($row) => number_format((float) $row->total_discount, 2))
             ->editColumn('paid_amount', fn ($row) => number_format((float) $row->paid_amount, 2))
             ->editColumn('due_amount', fn ($row) => number_format((float) $row->due_amount, 2))
             ->rawColumns(['action', 'status'])
+            ->with(['summary' => $summary])
             ->make(true);
+    }
+
+    public function purchasesReport(Request $request, PurchaseReportService $purchaseReportService)
+    {
+        $query = $purchaseReportService->baseQuery();
+        $purchaseReportService->applyFilters($query, $request);
+        $summary = $purchaseReportService->totals($query);
+
+        return DataTables::of($query)
+            ->orderColumn('supplier_name', 'suppliers.supplier_name $1')
+            ->orderColumn('location_address', 'locations.address $1')
+            ->orderColumn('invoice_id', 'purchases.invoice_id $1')
+            ->orderColumn('date', 'purchases.date $1, purchases.id $1')
+            ->orderColumn('total_price', 'purchases.total_price $1')
+            ->orderColumn('total_discount', 'purchases.total_discount $1')
+            ->orderColumn('paid_amount', 'purchases.paid_amount $1')
+            ->orderColumn('due_amount', 'due_amount $1')
+            ->filter(function () {
+                // Filters (including search) already applied via PurchaseReportService.
+            }, false)
+            ->addColumn('action', function ($row) {
+                return
+                    '<div class="action-btns">
+                        <a href="' . route('purchase.show', $row->id) . '" title="View">
+                            <i class="fa-solid fa-eye"></i>
+                        </a>
+                        <a href="' . route('purchase.edit', $row->id) . '" title="Edit">
+                            <i class="fa-solid fa-pen"></i>
+                        </a>
+                    </div>';
+            })
+            ->addColumn('status', function ($row) {
+                return $this->paymentStatusBadge(
+                    (float) $row->paid_amount,
+                    (float) $row->total_price
+                );
+            })
+            ->editColumn('total_price', fn ($row) => number_format((float) $row->total_price, 2))
+            ->editColumn('total_discount', fn ($row) => number_format((float) $row->total_discount, 2))
+            ->editColumn('paid_amount', fn ($row) => number_format((float) $row->paid_amount, 2))
+            ->editColumn('due_amount', fn ($row) => number_format((float) $row->due_amount, 2))
+            ->rawColumns(['action', 'status'])
+            ->with(['summary' => $summary])
+            ->make(true);
+    }
+
+    private function paymentStatusBadge(float $paidAmount, float $totalPrice): string
+    {
+        if ($paidAmount >= $totalPrice) {
+            return '<span class="status-pill is-paid">Paid</span>';
+        }
+
+        if ($paidAmount > 0 && $paidAmount < $totalPrice) {
+            return '<span class="status-pill is-partial">Partial</span>';
+        }
+
+        return '<span class="status-pill is-unpaid">Unpaid</span>';
     }
 }

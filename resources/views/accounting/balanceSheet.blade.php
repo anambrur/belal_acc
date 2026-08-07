@@ -17,11 +17,10 @@
                                 <p class="m-0">Thru Date:</p>
                             </div>
                             <div class="col-lg-5 col-sm-6 col-12">
-                                <h5>Moon Trading</h5>
-                                <h6>Belal Hosain</h6>
-                                <p class="m-0"><strong>Mobile:</strong>01723074844 </p>
-                                <p class="m-0"> <strong>Address:</strong>Central Road,Payrachottor,Rangpur</p>
-
+                                <h5>{{ $store?->store_name ?? '—' }}</h5>
+                                <h6>{{ $store?->owner_name ?? '' }}</h6>
+                                <p class="m-0"><strong>Mobile:</strong>{{ $store?->phone ?? '—' }}</p>
+                                <p class="m-0"><strong>Address:</strong>{{ $store?->full_address ?? '—' }}</p>
                             </div>
                             {{-- <div class="col-lg-4 col-sm-6 col-12">
                                 <h6><strong>Customer Name :</strong>{{ $customer[0]->customer_name }} </h6>

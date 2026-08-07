@@ -3,7 +3,7 @@
 <html lang="en">
 
 <head>
-    <title>MH POS</title>
+    <title>{{ $store?->store_name ?? 'MH POS' }}</title>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <!--===============================================================================================-->
@@ -40,7 +40,8 @@
                 <form method="POST" action="{{ route('login') }}" class="login100-form validate-form">
                     @csrf
                     <span class="login100-form-logo">
-                        <img src="{{ asset('assets/img/anamsLogo.png') }}" alt="logo" width="130">
+                        <img src="{{ $store?->logo_url ?? asset('assets/img/anamsLogo.png') }}"
+                            alt="{{ $store?->store_name ?? 'logo' }}" width="130">
                     </span>
 
                     <span class="login100-form-title p-b-34 p-t-27"> Log in </span>

@@ -13,9 +13,9 @@
                     <h6>Manage your User</h6>
                 </div>
                 <div class="page-btn">
-                    <a href="" class="btn btn-added"><img
+                    <a href="{{ route('user.create') }}" class="btn btn-added"><img
                             src="{{ asset('assets/img/icons/plus.svg') }}" alt="img" class="me-1" />Add New
-                        userlists</a>
+                        User</a>
                 </div>
             </div>
 
@@ -68,6 +68,7 @@
                             <thead>
                                 <tr>
                                     <th class="text-start">SL</th>
+                                    <th class="text-start">Photo</th>
                                     <th class="text-start">Name</th>
                                     <th class="text-start">Email</th>
                                     <th class="text-start">Phone</th>
@@ -80,7 +81,11 @@
                                 @foreach ($users as $d)
                                     <tr>
                                         <td class="text-start">{{ $loop->iteration }}</td>
-                                    
+                                        <td class="text-start">
+                                            <img src="{{ $d->photo_url }}" alt="{{ $d->name }}"
+                                                width="40" height="40"
+                                                style="object-fit: cover; border-radius: 50%;">
+                                        </td>
                                         <td class="text-start">{{ $d->name }}</td>
                                         <td class="text-start">{{ $d->email }}</td>
                                         <td class="text-start">{{ $d->phone }}</td>

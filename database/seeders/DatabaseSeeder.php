@@ -42,6 +42,6 @@ class DatabaseSeeder extends Seeder
         $this->call(ExpenseCategorySeeder::class);
         $this->call(UsersTableSeeder::class);
         $this->call(AccountsSeeder::class);
-        
+        $this->call(StoreSeeder::class);
     }
 }

@@ -13,8 +13,8 @@
         <div class="content">
             <div class="page-header">
                 <div class="page-title">
-                    <h4>PURCHASE LIST</h4>
-                    <h6>Manage your purchases</h6>
+                    <h4>Purchases List</h4>
+                    <h6>Manage your purchases and review period totals at a glance</h6>
 
                 </div>
                 <div class="page-btn">
@@ -94,14 +94,14 @@
                             <thead>
                                 <tr>
                                     <th>SL</th>
-                                    <th>Invoice Id</th>
+                                    <th>Invoice</th>
                                     <th>Supplier Name</th>
                                     <th>Address</th>
                                     <th>Date</th>
-                                    <th>Status</th>
                                     <th>Grand Total</th>
                                     <th>Paid</th>
                                     <th>Due</th>
+                                    <th>Status</th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
@@ -166,13 +166,6 @@
                         data: "date",
                         name: "date"
                     },
-
-                    {
-                        data: "status",
-                        name: "status",
-                        orderable: false,
-                        searchable: false,
-                    },
                     {
                         data: "total_price",
                         name: "total_price"
@@ -184,6 +177,12 @@
                     {
                         data: "due",
                         name: "due "
+                    },
+                    {
+                        data: "status",
+                        name: "status",
+                        orderable: false,
+                        searchable: false,
                     },
                     {
                         data: "action",

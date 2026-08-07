@@ -88,12 +88,21 @@
                                             </div>
                                         </div>
                                     </div>
-                                
+                                    <div class="col-lg-4 col-sm-4 col-12">
+                                        <div class="form-group">
+                                            <label>Photo / Logo</label>
+                                            <input type="file" name="photo" accept="image/*" />
+                                            <div class="text-danger">
+                                                @error('photo')
+                                                    {{ $message }}
+                                                @enderror
+                                            </div>
+                                        </div>
+                                    </div>
 
-                                    
                                     <div class="col-lg-12">
                                         <button class="btn btn-submit me-2">Submit</button>
-                                        <a href="javascript:void(0);" class="btn btn-cancel">Cancel</a>
+                                        <a href="{{ route('user.index') }}" class="btn btn-cancel">Cancel</a>
                                     </div>
                                 </div>
                             </div>

@@ -11,6 +11,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\BatchController;
 use App\Http\Controllers\StockController;
 use App\Http\Controllers\ProfitController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\ProductController;
@@ -31,6 +32,7 @@ use App\Http\Controllers\PaymentMethodController;
 use App\Http\Controllers\BalanceTansferController;
 use App\Http\Controllers\PurchaseReturnController;
 use App\Http\Controllers\ExpenseCategoryController;
+use App\Http\Controllers\StoreController;
 use App\Http\Controllers\TransliterationController;
 
 /*
@@ -131,11 +133,25 @@ Route::middleware('auth')->group(function () {
     Route::get('sells-report-list', [ProfitController::class, 'sellsReportList'])->name('sellsReportList');
     Route::get('purchase-report-list', [ProfitController::class, 'purchaseReportList'])->name('purchaseReportList');
     Route::get('sells-report', [ProfitController::class, 'sellsReport'])->name('sellsReport');
+    Route::get('purchases-report', [ProfitController::class, 'purchasesReport'])->name('purchasesReport');
+
+    Route::get('customer-due-report-list', [ReportController::class, 'customerDueList'])->name('customerDueList');
+    Route::get('customer-due-report', [ReportController::class, 'customerDueReport'])->name('customerDueReport');
+    Route::get('supplier-due-report-list', [ReportController::class, 'supplierDueList'])->name('supplierDueList');
+    Route::get('supplier-due-report', [ReportController::class, 'supplierDueReport'])->name('supplierDueReport');
+    Route::get('expense-report-list', [ReportController::class, 'expenseReportList'])->name('expenseReportList');
+    Route::get('expense-report', [ReportController::class, 'expenseReport'])->name('expenseReport');
+    Route::get('profit-loss-report-list', [ReportController::class, 'profitLossList'])->name('profitLossList');
+    Route::get('profit-loss-report', [ReportController::class, 'profitLossReport'])->name('profitLossReport');
 
     // Loan (payment routes before resource)
     Route::get('loan/payment/{id}', [LoanController::class, 'loanPayment'])->name('loanPayment');
     Route::post('loan/make-payment', [LoanController::class, 'makeLoanPayment'])->name('makeLoanPayment');
     Route::resource('loan', LoanController::class)->names('loan');
+
+    // Store settings (singleton profile)
+    Route::get('store-settings', [StoreController::class, 'edit'])->name('store.edit');
+    Route::put('store-settings', [StoreController::class, 'update'])->name('store.update');
 
     // Location
     Route::resource('location', LocationController::class)->names('location');
@@ -163,6 +179,10 @@ Route::middleware('auth')->group(function () {
     Route::resource('cash-flow', CashFlowController::class)->names('cash_flow');
 
     Route::get('/get-sales-data', [DashboardController::class, 'getSalesData'])->name('getSalesData');
+    Route::get('/dashboard/collections-chart', [DashboardController::class, 'collectionsChart'])->name('dashboard.collectionsChart');
+    Route::get('/dashboard/payment-status-chart', [DashboardController::class, 'paymentStatusChart'])->name('dashboard.paymentStatusChart');
+    Route::get('/dashboard/expense-trend-chart', [DashboardController::class, 'expenseTrendChart'])->name('dashboard.expenseTrendChart');
+    Route::get('/dashboard/road-sales-chart', [DashboardController::class, 'roadSalesChart'])->name('dashboard.roadSalesChart');
     Route::get('show-attendance', [AttendenceController::class, 'showAttendence'])->name('showAttendence');
 
     Route::resource('user', UserController::class)->names('user');

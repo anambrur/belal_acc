@@ -126,14 +126,14 @@
                             <thead>
                                 <tr>
                                     <th>SL</th>
+                                    <th>Invoice</th>
                                     <th>Date</th>
                                     <th>Customer</th>
                                     <th>Address</th>
-                                    <th>Invoice</th>
-                                    <th>Status</th>
                                     <th class="text-end">Total</th>
                                     <th class="text-end">Paid</th>
                                     <th class="text-end">Due</th>
+                                    <th>Status</th>
                                     <th class="text-center">Action</th>
                                 </tr>
                             </thead>
@@ -198,6 +198,10 @@
                         }
                     },
                     {
+                        data: 'invoice_id',
+                        name: 'invoice_id'
+                    },
+                    {
                         data: 'date',
                         name: 'date'
                     },
@@ -210,16 +214,6 @@
                         data: 'location_address',
                         name: 'location_address',
                         defaultContent: '—'
-                    },
-                    {
-                        data: 'invoice_id',
-                        name: 'invoice_id'
-                    },
-                    {
-                        data: 'status',
-                        name: 'status',
-                        orderable: false,
-                        searchable: false
                     },
                     {
                         data: 'total_price',
@@ -238,6 +232,12 @@
                         name: 'due_amount',
                         searchable: false,
                         className: 'text-end'
+                    },
+                    {
+                        data: 'status',
+                        name: 'status',
+                        orderable: false,
+                        searchable: false
                     },
                     {
                         data: 'action',
