@@ -379,13 +379,15 @@
                 responsive: true,
                 searchDelay: 400,
                 pageLength: 25,
+                lengthMenu: DtListHelpers.lengthMenu,
                 order: [[1, 'desc']],
                 language: {
                     search: '',
                     searchPlaceholder: 'Search customer, road, address…',
                     processing: 'Loading collections…',
                     emptyTable: 'No collection records found',
-                    zeroRecords: 'No matching collections'
+                    zeroRecords: 'No matching collections',
+                    lengthMenu: 'Show _MENU_ entries'
                 },
                 ajax: {
                     url: "{{ route('collectionListData') }}",
@@ -454,9 +456,26 @@
                         }
                     }
                 ],
-                dom: "<'row align-items-center mb-2'<'col-sm-12 col-md-6'><'col-sm-12 col-md-6'f>>" +
-                    "<'row'<'col-sm-12'tr>>" +
-                    "<'row align-items-center'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>"
+                dom: DtListHelpers.dom,
+                buttons: DtListHelpers.makeExportButtons({
+                    columns: [0, 1, 2, 3, 4, 5],
+                    docTitle: 'COLLECTION LIST',
+                    getFilterSummary: function() {
+                        var parts = [];
+                        var road = $('#filter_road').val();
+                        var address = $('#filter_address').val();
+                        if (road && road !== 'All Road' && road !== '') {
+                            parts.push($('#filter_road option:selected').text().trim());
+                        }
+                        if (address && address !== 'All Address' && address !== '') {
+                            parts.push($('#filter_address option:selected').text().trim());
+                        }
+                        if (typeof filter_date !== 'undefined' && filter_date) {
+                            parts.push(filter_date);
+                        }
+                        return parts.join(' · ');
+                    }
+                })
             });
 
             $('.select').select2({

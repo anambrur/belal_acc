@@ -67,12 +67,32 @@ $(document).ready(function () {
             sDom: "fBtlpi",
             pagingType: "numbers",
             ordering: true,
+            pageLength: 10,
+            lengthMenu: (window.DtListHelpers && DtListHelpers.lengthMenu) || [
+                [10, 25, 50, 100, -1],
+                [10, 25, 50, 100, "All"],
+            ],
             language: {
                 search: " ",
                 sLengthMenu: "_MENU_",
                 searchPlaceholder: "Search...",
                 info: "_START_ - _END_ of _TOTAL_ items",
+                lengthMenu: "Show _MENU_ entries",
             },
+            buttons:
+                window.DtListHelpers
+                    ? DtListHelpers.makeExportButtons({
+                          columns: function (idx, data, node) {
+                              var header = $(node).closest("table").find("thead th").eq(idx);
+                              var text = header.text().replace(/\s+/g, " ").trim().toLowerCase();
+                              if (text === "action" || header.find('input[type="checkbox"]').length) {
+                                  return false;
+                              }
+                              return true;
+                          },
+                          docTitle: (document.title || "LIST").split("—")[0].trim().toUpperCase() || "LIST",
+                      })
+                    : [],
             initComplete: (settings, json) => {
                 $(".dataTables_filter").appendTo("#tableSearch");
                 $(".dataTables_filter").appendTo(".search-input");

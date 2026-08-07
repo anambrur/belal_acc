@@ -233,6 +233,11 @@
                 processing: true,
                 serverSide: true,
                 responsive: true,
+                pageLength: 10,
+                lengthMenu: DtListHelpers.lengthMenu,
+                language: {
+                    lengthMenu: 'Show _MENU_ entries'
+                },
                 ajax: {
                     url: "{{ route('productListTable') }}",
                     data: function(d) {
@@ -282,53 +287,27 @@
                     },
                 ],
 
-                dom: "<'row'<'col-sm-12 col-md-3'B><'col-sm-12 col-md-9'f>>" +
-                     "<'row'<'col-sm-12'tr>>" +
-                     "<'row'<'col-sm-12 col-md-3'i><'col-sm-12 col-md-9'p>>",
-                buttons: [{
-                        extend: 'copy',
-                        text: 'Copy',
-                        titleAttr: 'Copy'
-                    },
-                    {
-                        extend: 'excel',
-                        text: 'Excel',
-                        titleAttr: 'Excel'
-                    },
-                    {
-                        extend: 'pdf',
-                        text: 'PDF',
-                        titleAttr: 'PDF'
-                    },
-                    {
-                        extend: 'print',
-                        text: 'Print',
-                        titleAttr: 'Print',
-                        customize: function(win) {
-                            var body = $(win.document.body);
-                            body.addClass('print-container');
-
-                            var table = body.find('table').clone().addClass('print-table');
-
-                            // Clear body and add flex columns
-                            body.empty().append(
-                                '<div class="print-column"></div><div class="print-column"></div>'
-                                );
-
-                            // Append table to first column
-                            var column1 = body.find('.print-column').first();
-                            column1.append(table);
-
-                            // Optionally, add logic to handle table overflow if needed
-
-                            // Set font size for printing
-                            body.css('font-size', '10pt');
-                        },
-                        exportOptions: {
-                            columns: [0, 2, 7] // Adjust as needed
+                dom: DtListHelpers.dom,
+                buttons: DtListHelpers.makeExportButtons({
+                    columns: [0, 1, 2, 3, 4, 5, 6, 7],
+                    docTitle: 'PRODUCT LIST',
+                    getFilterSummary: function() {
+                        var parts = [];
+                        var company = $('#filter_company').val();
+                        var category = $('#filter_category').val();
+                        var batch = $('#filter_batch').val();
+                        if (company && company !== 'All' && company !== '') {
+                            parts.push($('#filter_company option:selected').text().trim());
                         }
+                        if (category && category !== 'All' && category !== '') {
+                            parts.push($('#filter_category option:selected').text().trim());
+                        }
+                        if (batch && batch !== 'All' && batch !== '') {
+                            parts.push($('#filter_batch option:selected').text().trim());
+                        }
+                        return parts.join(' · ');
                     }
-                ]
+                })
             });
 
             $(".select").select2();

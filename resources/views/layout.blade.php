@@ -77,6 +77,17 @@
     <script src="{{ asset('assets/plugins/datatable/moment.min.js') }}"></script>
     {{-- <script src="{{ asset('assets/js/dataTables.min.js') }}"></script> --}}
 
+    <script>
+        window.appStore = {
+            logo: @json($store?->logo_url ?? asset('assets/img/anamsLogo.png')),
+            name: @json($store?->store_name ?? 'Store'),
+            owner: @json($store?->owner_name ?? ''),
+            phone: @json($store?->phone ?? ''),
+            email: @json($store?->email ?? ''),
+            address: @json($store?->full_address ?? '')
+        };
+    </script>
+    <script src="{{ asset('assets/js/datatable-list-helpers.js') }}"></script>
 
     <script src="{{ asset('assets/js/bootstrap.bundle.min.js') }}"></script>
 

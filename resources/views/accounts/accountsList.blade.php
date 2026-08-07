@@ -73,7 +73,7 @@
                     </div>
 
                     <div class="table-responsive">
-                        <table class="table table-striped" id="">
+                        <table class="table datanew table-striped" id="">
                             @php
                                 $netAmount = getAccountsBalance();
                                 // dd($netAmount);

@@ -223,11 +223,13 @@
                 responsive: true,
                 searchDelay: 400,
                 pageLength: 10,
+                lengthMenu: DtListHelpers.lengthMenu,
                 order: [[2, 'desc']],
                 language: {
                     search: '',
                     searchPlaceholder: 'Search customer, invoice, address…',
-                    processing: 'Loading sales…'
+                    processing: 'Loading sales…',
+                    lengthMenu: 'Show _MENU_ entries'
                 },
                 ajax: {
                     url: "{{ route('getSellDataList') }}",
@@ -301,29 +303,26 @@
                         className: 'text-center'
                     }
                 ],
-                dom: "<'row align-items-center m-2'<'col-sm-12 col-md-5'B><'col-sm-12 col-md-7'f>>" +
-                    "<'row'<'col-sm-12'tr>>" +
-                    "<'row align-items-center'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
-                buttons: [{
-                        extend: 'copy',
-                        text: 'Copy'
-                    },
-                    {
-                        extend: 'excel',
-                        text: 'Excel'
-                    },
-                    {
-                        extend: 'pdf',
-                        text: 'PDF'
-                    },
-                    {
-                        extend: 'print',
-                        text: 'Print',
-                        exportOptions: {
-                            columns: [0, 1, 2, 3, 4, 5, 6, 7, 8]
+                dom: DtListHelpers.dom,
+                buttons: DtListHelpers.makeExportButtons({
+                    columns: [0, 1, 2, 3, 4, 5, 6, 7, 8],
+                    docTitle: 'SELL LIST',
+                    getFilterSummary: function() {
+                        var parts = [];
+                        var customer = $('#filter_customer').val();
+                        var address = $('#filter_address').val();
+                        if (customer && customer !== 'All Customer' && customer !== '') {
+                            parts.push($('#filter_customer option:selected').text().trim());
                         }
+                        if (address && address !== 'All Address' && address !== '') {
+                            parts.push($('#filter_address option:selected').text().trim());
+                        }
+                        if (typeof filter_date !== 'undefined' && filter_date) {
+                            parts.push(filter_date);
+                        }
+                        return parts.join(' · ');
                     }
-                ],
+                }),
                 footerCallback: function() {
                     var api = this.api();
                     var intVal = function(i) {

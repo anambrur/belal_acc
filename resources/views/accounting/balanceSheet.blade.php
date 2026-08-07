@@ -91,13 +91,13 @@
                 processing: true,
                 serverSide: true,
                 responsive: true,
+                pageLength: 10,
+                lengthMenu: DtListHelpers.lengthMenu,
+                language: {
+                    lengthMenu: 'Show _MENU_ entries'
+                },
                 ajax: {
                     url: "{{ route('blanceSheetTable') }}",
-                    // data: function(d) {
-                    //     d.filter_company = $('#filter_company').val();
-                    //     d.filter_category = $('#filter_category').val();
-                    //     d.filter_batch = $('#filter_batch').val();
-                    // }
                 },
 
                 columns: [{
@@ -120,15 +120,12 @@
                         data: "total_price",
                         name: "total_price"
                     },
-                   
-
-                    // {
-                    //     data: "action",
-                    //     name: "action",
-                    //     orderable: false,
-                    //     searchable: false,
-                    // },
                 ],
+                dom: DtListHelpers.dom,
+                buttons: DtListHelpers.makeExportButtons({
+                    columns: [0, 1, 2, 3, 4],
+                    docTitle: 'BALANCE SHEET'
+                })
             });
 
 

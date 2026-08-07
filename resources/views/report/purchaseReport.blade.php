@@ -229,11 +229,13 @@
                 responsive: true,
                 searchDelay: 400,
                 pageLength: 25,
+                lengthMenu: DtListHelpers.lengthMenu,
                 order: [[1, 'desc']],
                 language: {
                     search: '',
                     searchPlaceholder: 'Search supplier, invoice, address…',
-                    processing: 'Loading purchase report…'
+                    processing: 'Loading purchase report…',
+                    lengthMenu: 'Show _MENU_ entries'
                 },
                 ajax: {
                     url: "{{ route('purchasesReport') }}",
@@ -275,19 +277,30 @@
                         className: 'text-center'
                     }
                 ],
-                dom: "<'row align-items-center mx-1 mt-2 mb-3'<'col-sm-12 col-md-5'B><'col-sm-12 col-md-7'f>>" +
-                    "<'row'<'col-sm-12'tr>>" +
-                    "<'row align-items-center mt-3'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
-                buttons: [
-                    { extend: 'copy', text: 'Copy' },
-                    { extend: 'excel', text: 'Excel' },
-                    { extend: 'pdf', text: 'PDF' },
-                    {
-                        extend: 'print',
-                        text: 'Print',
-                        exportOptions: { columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] }
+                dom: DtListHelpers.reportDom,
+                buttons: DtListHelpers.makeExportButtons({
+                    columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+                    docTitle: 'PURCHASE REPORT',
+                    getFilterSummary: function() {
+                        var parts = [];
+                        var supplier = $('#filter_supplier').val();
+                        var address = $('#filter_address').val();
+                        var status = $('#filter_status').val();
+                        if (supplier && supplier !== 'All Supplier' && supplier !== '') {
+                            parts.push($('#filter_supplier option:selected').text().trim());
+                        }
+                        if (address && address !== 'All Address' && address !== '') {
+                            parts.push($('#filter_address option:selected').text().trim());
+                        }
+                        if (status && status !== 'All Status' && status !== '') {
+                            parts.push($('#filter_status option:selected').text().trim());
+                        }
+                        if (typeof filter_date !== 'undefined' && filter_date) {
+                            parts.push(filter_date);
+                        }
+                        return parts.join(' · ');
                     }
-                ],
+                }),
                 footerCallback: function() {
                     var api = this.api();
                     var intVal = function(i) {

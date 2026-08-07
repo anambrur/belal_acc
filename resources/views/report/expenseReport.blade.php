@@ -179,11 +179,13 @@
                 responsive: true,
                 searchDelay: 400,
                 pageLength: 25,
+                lengthMenu: DtListHelpers.lengthMenu,
                 order: [[1, 'desc']],
                 language: {
                     search: '',
                     searchPlaceholder: 'Search category, description…',
-                    processing: 'Loading expense report…'
+                    processing: 'Loading expense report…',
+                    lengthMenu: 'Show _MENU_ entries'
                 },
                 ajax: {
                     url: "{{ route('expenseReport') }}",
@@ -218,19 +220,22 @@
                         className: 'text-center'
                     }
                 ],
-                dom: "<'row align-items-center mx-1 mt-2 mb-3'<'col-sm-12 col-md-5'B><'col-sm-12 col-md-7'f>>" +
-                    "<'row'<'col-sm-12'tr>>" +
-                    "<'row align-items-center mt-3'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
-                buttons: [
-                    { extend: 'copy', text: 'Copy' },
-                    { extend: 'excel', text: 'Excel' },
-                    { extend: 'pdf', text: 'PDF' },
-                    {
-                        extend: 'print',
-                        text: 'Print',
-                        exportOptions: { columns: [0, 1, 2, 3, 4] }
+                dom: DtListHelpers.reportDom,
+                buttons: DtListHelpers.makeExportButtons({
+                    columns: [0, 1, 2, 3, 4],
+                    docTitle: 'EXPENSE REPORT',
+                    getFilterSummary: function() {
+                        var parts = [];
+                        var category = $('#filter_category').val();
+                        if (category && category !== 'All Category' && category !== '') {
+                            parts.push($('#filter_category option:selected').text().trim());
+                        }
+                        if (typeof filter_date !== 'undefined' && filter_date) {
+                            parts.push(filter_date);
+                        }
+                        return parts.join(' · ');
                     }
-                ],
+                }),
                 footerCallback: function() {
                     var api = this.api();
                     var intVal = function(i) {

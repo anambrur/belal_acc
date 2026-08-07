@@ -100,6 +100,11 @@
                 processing: true,
                 serverSide: true,
                 responsive: true,
+                pageLength: 10,
+                lengthMenu: DtListHelpers.lengthMenu,
+                language: {
+                    lengthMenu: 'Show _MENU_ entries'
+                },
                 ajax: "{{ route('getRoadList') }}",
                 columns: [{
                         data: "sl",
@@ -116,6 +121,11 @@
                         searchable: false,
                     },
                 ],
+                dom: DtListHelpers.dom,
+                buttons: DtListHelpers.makeExportButtons({
+                    columns: [0, 1],
+                    docTitle: 'ROAD LIST'
+                })
             });
         });
     </script>
