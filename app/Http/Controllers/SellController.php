@@ -68,7 +68,26 @@ class SellController extends Controller
             }
         }
 
+        $statsQuery = clone $query;
+        $statsQuery->columns = null;
+        $stats = $statsQuery
+            ->selectRaw('
+                COUNT(*) as invoices,
+                COALESCE(SUM(sells.total_price), 0) as total,
+                COALESCE(SUM(sells.paid_amount), 0) as paid,
+                COALESCE(SUM(sells.total_price - sells.paid_amount), 0) as due
+            ')
+            ->first();
+
         return DataTables::of($query)
+            ->with([
+                'stats' => [
+                    'invoices' => (int) ($stats->invoices ?? 0),
+                    'total' => (float) ($stats->total ?? 0),
+                    'paid' => (float) ($stats->paid ?? 0),
+                    'due' => (float) ($stats->due ?? 0),
+                ],
+            ])
             ->orderColumn('customer_name', 'customers.customer_name $1')
             ->orderColumn('location_address', 'locations.address $1')
             ->orderColumn('invoice_id', 'sells.invoice_id $1')

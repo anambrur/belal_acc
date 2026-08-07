@@ -86,7 +86,7 @@
 
             <div class="filter-panel">
                 <div class="row g-3 align-items-end">
-                    <div class="col-lg-4 col-md-6">
+                    <div class="col-lg-3 col-md-6">
                         <label for="filter_road" class="form-label">Road</label>
                         <select class="select" id="filter_road">
                             <option>All Road</option>
@@ -96,7 +96,7 @@
                         </select>
                     </div>
 
-                    <div class="col-lg-4 col-md-6">
+                    <div class="col-lg-3 col-md-6">
                         <label for="filter_address" class="form-label">Address</label>
                         <select class="select" id="filter_address">
                             <option>All Address</option>
@@ -106,11 +106,56 @@
                         </select>
                     </div>
 
-                    <div class="col-lg-2 col-md-6">
+                    <div class="col-lg-3 col-md-6">
+                        <label for="filter_status" class="form-label">Balance status</label>
+                        <select class="select" id="filter_status">
+                            <option>All Status</option>
+                            <option value="Due">Due</option>
+                            <option value="Paid">Paid</option>
+                            <option value="Overpaid">Overpaid</option>
+                        </select>
+                    </div>
+
+                    <div class="col-lg-3 col-md-6">
                         <button type="button" class="btn btn-reset-filters" id="reset_filters">
                             <i class="fa fa-undo me-1"></i> Reset
                         </button>
                     </div>
+                </div>
+            </div>
+
+            <div class="list-stats" id="filter_stats">
+                <div class="list-stat-card is-invoices">
+                    <div class="stat-top">
+                        <div class="stat-label">Suppliers</div>
+                        <span class="stat-icon"><i class="fa fa-truck"></i></span>
+                    </div>
+                    <div class="stat-value" id="stat_count">0</div>
+                    <div class="stat-hint"><span id="stat_due_count">0</span> with outstanding due</div>
+                </div>
+                <div class="list-stat-card is-total">
+                    <div class="stat-top">
+                        <div class="stat-label">Total purchase</div>
+                        <span class="stat-icon"><i class="fa fa-shopping-cart"></i></span>
+                    </div>
+                    <div class="stat-value" id="stat_purchase">৳0.00</div>
+                    <div class="stat-hint">Purchases of filtered suppliers</div>
+                </div>
+                <div class="list-stat-card is-paid">
+                    <div class="stat-top">
+                        <div class="stat-label">Paid</div>
+                        <span class="stat-icon"><i class="fa fa-check-circle"></i></span>
+                    </div>
+                    <div class="stat-value" id="stat_payment">৳0.00</div>
+                    <div class="stat-hint">Payments made to suppliers</div>
+                </div>
+                <div class="list-stat-card is-due">
+                    <div class="stat-top">
+                        <div class="stat-label">Due</div>
+                        <span class="stat-icon"><i class="fa fa-exclamation-circle"></i></span>
+                    </div>
+                    <div class="stat-value" id="stat_due">৳0.00</div>
+                    <div class="stat-hint">Outstanding supplier balance</div>
                 </div>
             </div>
 
@@ -153,9 +198,27 @@
 @push('js')
     <script type="text/javascript">
         $(document).ready(function() {
+            function formatMoney(value) {
+                var num = Number(value || 0);
+                return '৳' + num.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            }
+
+            function updateFilterStats(stats) {
+                stats = stats || {};
+                $('#stat_count').text(Number(stats.total_count || 0).toLocaleString());
+                $('#stat_due_count').text(Number(stats.due_count || 0).toLocaleString());
+                $('#stat_purchase').text(formatMoney(stats.purchase_total));
+                $('#stat_payment').text(formatMoney(stats.payment_total));
+                $('#stat_due').text(formatMoney(stats.due_total));
+            }
+
             function updateFilterLabel() {
                 var road = $('#filter_road').val();
                 var address = $('#filter_address').val();
+                var status = $('#filter_status').val();
                 var parts = [];
 
                 if (road && road !== 'All Road') {
@@ -163,6 +226,9 @@
                 }
                 if (address && address !== 'All Address') {
                     parts.push($('#filter_address option:selected').text().trim());
+                }
+                if (status && status !== 'All Status') {
+                    parts.push(status);
                 }
 
                 $('#active_filter_label').text(parts.length ? 'Filters: ' + parts.join(' · ') : 'Filters: All');
@@ -189,6 +255,11 @@
                     data: function(d) {
                         d.filter_road = $('#filter_road').val();
                         d.filter_address = $('#filter_address').val();
+                        d.filter_status = $('#filter_status').val();
+                    },
+                    dataSrc: function(json) {
+                        updateFilterStats(json.stats);
+                        return json.data;
                     }
                 },
                 columns: [{
@@ -295,7 +366,7 @@
                 width: '100%'
             });
 
-            $('#filter_road, #filter_address').on('change', function() {
+            $('#filter_road, #filter_address, #filter_status').on('change', function() {
                 updateFilterLabel();
                 table.draw();
             });
@@ -303,6 +374,7 @@
             $('#reset_filters').on('click', function() {
                 $('#filter_road').val('All Road').trigger('change.select2');
                 $('#filter_address').val('All Address').trigger('change.select2');
+                $('#filter_status').val('All Status').trigger('change.select2');
                 updateFilterLabel();
                 table.search('').draw();
             });

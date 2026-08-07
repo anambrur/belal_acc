@@ -79,7 +79,41 @@ class CustomerController extends Controller
             $query->where('customers.location_id', $request->filter_address);
         }
 
+        if ($request->filled('filter_status') && $request->filter_status !== 'All Status') {
+            $dueExpr = '(COALESCE(sell_agg.sell_total, 0) - COALESCE(return_agg.return_total, 0) - COALESCE(payment_agg.payment_total, 0))';
+            if ($request->filter_status === 'Due') {
+                $query->whereRaw("{$dueExpr} > 0");
+            } elseif ($request->filter_status === 'Advance') {
+                $query->whereRaw("{$dueExpr} < 0");
+            } elseif ($request->filter_status === 'Cleared') {
+                $query->whereRaw("{$dueExpr} = 0");
+            }
+        }
+
+        $statsQuery = clone $query;
+        $statsQuery->columns = null;
+        $stats = $statsQuery
+            ->selectRaw('
+                COUNT(*) as total_count,
+                COALESCE(SUM(COALESCE(sell_agg.sell_total, 0)), 0) as sell_total,
+                COALESCE(SUM(COALESCE(return_agg.return_total, 0)), 0) as return_total,
+                COALESCE(SUM(COALESCE(payment_agg.payment_total, 0)), 0) as payment_total,
+                COALESCE(SUM(COALESCE(sell_agg.sell_total, 0) - COALESCE(return_agg.return_total, 0) - COALESCE(payment_agg.payment_total, 0)), 0) as due_total,
+                SUM(CASE WHEN (COALESCE(sell_agg.sell_total, 0) - COALESCE(return_agg.return_total, 0) - COALESCE(payment_agg.payment_total, 0)) > 0 THEN 1 ELSE 0 END) as due_count
+            ')
+            ->first();
+
         return DataTables::of($query)
+            ->with([
+                'stats' => [
+                    'total_count' => (int) ($stats->total_count ?? 0),
+                    'due_count' => (int) ($stats->due_count ?? 0),
+                    'sell_total' => (float) ($stats->sell_total ?? 0),
+                    'return_total' => (float) ($stats->return_total ?? 0),
+                    'payment_total' => (float) ($stats->payment_total ?? 0),
+                    'due_total' => (float) ($stats->due_total ?? 0),
+                ],
+            ])
             ->orderColumn('customer_name', 'customers.customer_name $1')
             ->orderColumn('phone', 'customers.phone $1')
             ->orderColumn('road_name', 'roads.name $1')

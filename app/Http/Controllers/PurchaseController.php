@@ -32,66 +32,122 @@ class PurchaseController extends Controller
     }
 
     /**
-     * yajra data table
+     * Yajra data table — server-side query with joins (fast).
      */
     public function getPurchaseDataList(Request $request)
     {
-        $query = Purchase::groupBy('invoice_id')->with('supplier', 'supplier.location');
+        $query = DB::table('purchases')
+            ->leftJoin('suppliers', 'suppliers.id', '=', 'purchases.supplier_id')
+            ->leftJoin('locations', 'locations.id', '=', 'suppliers.location_id')
+            ->select([
+                'purchases.id',
+                'purchases.invoice_id',
+                'purchases.supplier_id',
+                'purchases.total_price',
+                'purchases.paid_amount',
+                'purchases.total_discount',
+                'purchases.date',
+                'purchases.location_id',
+                'purchases.created_at',
+                'suppliers.supplier_name',
+                'locations.address as location_address',
+                DB::raw('(purchases.total_price - purchases.paid_amount) as due_amount'),
+            ]);
 
-        // Apply Supplier Filter
-        if ($request->has('filter_supplier') && $request->filter_supplier != 'All Supplier') {
-            $query->where('supplier_id', $request->filter_supplier);
+        if ($request->filled('filter_supplier') && $request->filter_supplier !== 'All Supplier') {
+            $query->where('purchases.supplier_id', $request->filter_supplier);
         }
 
-        // Apply Address Filter
-        if ($request->has('filter_address') && $request->filter_address != 'All Address') {
-            $query->where('location_id', $request->filter_address);
+        if ($request->filled('filter_address') && $request->filter_address !== 'All Address') {
+            $query->where('purchases.location_id', $request->filter_address);
         }
 
-        // Apply Date Range Filter
-        if ($request->has('date_range') && !empty($request->date_range)) {
+        if ($request->filled('date_range')) {
             $dates = explode(' - ', $request->date_range);
-            $start_date = $dates[0];
-            $end_date = $dates[1];
-            $query->whereBetween('created_at', [$start_date, $end_date]);
+            if (count($dates) === 2) {
+                $query->whereBetween('purchases.date', [trim($dates[0]), trim($dates[1])]);
+            }
         }
 
-        // Fetch Data
-        $data = $query->orderBy('created_at', 'DESC')->get();
-        // dd($data);
+        $statsQuery = clone $query;
+        $statsQuery->columns = null;
+        $stats = $statsQuery
+            ->selectRaw('
+                COUNT(*) as invoices,
+                COALESCE(SUM(purchases.total_price), 0) as total,
+                COALESCE(SUM(purchases.paid_amount), 0) as paid,
+                COALESCE(SUM(purchases.total_price - purchases.paid_amount), 0) as due
+            ')
+            ->first();
 
-        $sl = 1;
-        return Datatables::of($data)
-            ->addIndexColumn()
-            ->addColumn('action', function ($row) {
-                $actions =
-                    '<div class="d-flex align-center ">
-                    
-                    <a href="' . route('purchase.edit', $row->id) . '">
-                        <span><i class="fa-solid fa-pen "></i></span>
-                    </a>
-                    <form action="' . route('purchase.destroy', $row->id) . '" method="post">
-                        <input type="hidden" name ="_token" value="' . csrf_token() . '"/>
-                        <input type="hidden" name ="_method" value="delete"/>
-                        <button onclick="return confirm(\'Are you sure you want to delete?\')" class="btn">
-                            <i class="fas fa-trash" style="color: #FF0000;"></i>
-                        </button>
-                    </form>
-                </div>';
-                return $actions;
+        return DataTables::of($query)
+            ->with([
+                'stats' => [
+                    'invoices' => (int) ($stats->invoices ?? 0),
+                    'total' => (float) ($stats->total ?? 0),
+                    'paid' => (float) ($stats->paid ?? 0),
+                    'due' => (float) ($stats->due ?? 0),
+                ],
+            ])
+            ->orderColumn('supplier_name', 'suppliers.supplier_name $1')
+            ->orderColumn('location_address', 'locations.address $1')
+            ->orderColumn('invoice_id', 'purchases.invoice_id $1')
+            ->orderColumn('date', 'purchases.date $1')
+            ->orderColumn('total_price', 'purchases.total_price $1')
+            ->orderColumn('paid_amount', 'purchases.paid_amount $1')
+            ->orderColumn('due_amount', 'due_amount $1')
+            ->orderColumn('created_at', 'purchases.created_at $1')
+            ->filterColumn('supplier_name', function ($q, $keyword) {
+                $q->where('suppliers.supplier_name', 'like', "%{$keyword}%");
             })
-            ->addColumn('due', function ($row) {
-                return $row->total_price - $row->paid_amount;
+            ->filterColumn('location_address', function ($q, $keyword) {
+                $q->where('locations.address', 'like', "%{$keyword}%");
+            })
+            ->filterColumn('invoice_id', function ($q, $keyword) {
+                $q->where('purchases.invoice_id', 'like', "%{$keyword}%");
+            })
+            ->filterColumn('date', function ($q, $keyword) {
+                $q->where('purchases.date', 'like', "%{$keyword}%");
+            })
+            ->filter(function ($q) use ($request) {
+                $search = trim((string) $request->input('search.value', ''));
+                if ($search === '') {
+                    return;
+                }
+
+                $like = '%' . $search . '%';
+                $q->where(function ($inner) use ($like) {
+                    $inner->where('suppliers.supplier_name', 'like', $like)
+                        ->orWhere('locations.address', 'like', $like)
+                        ->orWhere('purchases.invoice_id', 'like', $like)
+                        ->orWhere('purchases.date', 'like', $like);
+                });
+            }, false)
+            ->addColumn('action', function ($row) {
+                return
+                    '<div class="action-btns">
+                        <a href="' . route('purchase.show', $row->id) . '" title="View">
+                            <i class="fa-solid fa-eye"></i>
+                        </a>
+                        <a href="' . route('purchase.edit', $row->id) . '" title="Edit">
+                            <i class="fa-solid fa-pen"></i>
+                        </a>
+                        <button type="button" class="border-0 text-danger bg-transparent delete-button"
+                            data-url="' . route('purchase.destroy', $row->id) . '" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>';
             })
             ->addColumn('status', function ($row) {
-                $statusText = ($row->total_price - $row->paid_amount > 0) ? 'Unpaid' : 'Paid';
-                $textColor = ($row->total_price - $row->paid_amount > 0) ? 'text-danger' : 'text-success';
-
-                return '<span class="px-2 py-1 border rounded ' . $textColor . '">' . $statusText . '</span>';
+                $due = (float) $row->due_amount;
+                if ($due > 0) {
+                    return '<span class="px-2 py-1 border rounded text-danger">Unpaid</span>';
+                }
+                return '<span class="px-2 py-1 border rounded text-success">Paid</span>';
             })
-            ->addColumn('sl', function () use (&$sl) {
-                return $sl++;
-            })
+            ->editColumn('total_price', fn ($row) => number_format((float) $row->total_price, 2))
+            ->editColumn('paid_amount', fn ($row) => number_format((float) $row->paid_amount, 2))
+            ->editColumn('due_amount', fn ($row) => number_format((float) $row->due_amount, 2))
             ->rawColumns(['action', 'status'])
             ->make(true);
     }
@@ -306,8 +362,21 @@ class PurchaseController extends Controller
      */
     public function destroy(Purchase $purchase)
     {
-        $purchase->delete();
-        return redirect()->route('purchase.index');
+        try {
+            Purchase::where('invoice_id', $purchase->invoice_id)->delete();
+
+            if (request()->ajax() || request()->wantsJson()) {
+                return response()->json(['success' => true, 'message' => 'Purchase record deleted successfully.']);
+            }
+
+            return redirect()->route('purchase.index');
+        } catch (\Exception $e) {
+            if (request()->ajax() || request()->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Error deleting purchase record: ' . $e->getMessage()]);
+            }
+
+            return redirect()->route('purchase.index')->with('error', 'Error deleting purchase record.');
+        }
     }
     /**
      * Rget product data call api with barcode.

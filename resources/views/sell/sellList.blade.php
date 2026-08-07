@@ -112,6 +112,41 @@
                 </div>
             </div>
 
+            <div class="list-stats" id="filter_stats">
+                <div class="list-stat-card is-invoices">
+                    <div class="stat-top">
+                        <div class="stat-label">Invoices</div>
+                        <span class="stat-icon"><i class="fa fa-file-invoice"></i></span>
+                    </div>
+                    <div class="stat-value" id="stat_invoices">0</div>
+                    <div class="stat-hint">Matching current filters</div>
+                </div>
+                <div class="list-stat-card is-total">
+                    <div class="stat-top">
+                        <div class="stat-label">Total sales</div>
+                        <span class="stat-icon"><i class="fa fa-chart-line"></i></span>
+                    </div>
+                    <div class="stat-value" id="stat_total">৳0.00</div>
+                    <div class="stat-hint">Grand total of filtered invoices</div>
+                </div>
+                <div class="list-stat-card is-paid">
+                    <div class="stat-top">
+                        <div class="stat-label">Paid</div>
+                        <span class="stat-icon"><i class="fa fa-check-circle"></i></span>
+                    </div>
+                    <div class="stat-value" id="stat_paid">৳0.00</div>
+                    <div class="stat-hint">Collected against filtered sales</div>
+                </div>
+                <div class="list-stat-card is-due">
+                    <div class="stat-top">
+                        <div class="stat-label">Due</div>
+                        <span class="stat-icon"><i class="fa fa-exclamation-circle"></i></span>
+                    </div>
+                    <div class="stat-value" id="stat_due">৳0.00</div>
+                    <div class="stat-hint">Outstanding balance</div>
+                </div>
+            </div>
+
             <div class="list-card">
                 <div class="list-toolbar">
                     <div>
@@ -140,12 +175,11 @@
                             <tbody></tbody>
                             <tfoot>
                                 <tr>
-                                    <th colspan="5"></th>
-                                    <th>Page total</th>
+                                    <th colspan="5" class="text-end">Page total</th>
                                     <th id="total-price-footer" class="text-end"></th>
                                     <th id="paid-amount-footer" class="text-end"></th>
                                     <th id="due-footer" class="text-end"></th>
-                                    <th></th>
+                                    <th colspan="2"></th>
                                 </tr>
                             </tfoot>
                         </table>
@@ -163,6 +197,22 @@
         $(document).ready(function() {
             var filter_date = '';
 
+            function formatMoney(value) {
+                var num = Number(value || 0);
+                return '৳' + num.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            }
+
+            function updateFilterStats(stats) {
+                stats = stats || {};
+                $('#stat_invoices').text(Number(stats.invoices || 0).toLocaleString());
+                $('#stat_total').text(formatMoney(stats.total));
+                $('#stat_paid').text(formatMoney(stats.paid));
+                $('#stat_due').text(formatMoney(stats.due));
+            }
+
             if ($.fn.DataTable.isDataTable('#dataTable')) {
                 $('#dataTable').DataTable().destroy();
             }
@@ -173,7 +223,7 @@
                 responsive: true,
                 searchDelay: 400,
                 pageLength: 10,
-                order: [[4, 'desc']],
+                order: [[2, 'desc']],
                 language: {
                     search: '',
                     searchPlaceholder: 'Search customer, invoice, address…',
@@ -185,6 +235,10 @@
                         d.filter_customer = $('#filter_customer').val();
                         d.filter_address = $('#filter_address').val();
                         d.date_range = filter_date;
+                    },
+                    dataSrc: function(json) {
+                        updateFilterStats(json.stats);
+                        return json.data;
                     }
                 },
                 columns: [{
@@ -277,25 +331,25 @@
                             typeof i === 'number' ? i : 0;
                     };
 
-                    var total = api.column(6, {
+                    var total = api.column(5, {
                         page: 'current'
                     }).data().reduce(function(a, b) {
                         return intVal(a) + intVal(b);
                     }, 0);
-                    var paid = api.column(7, {
+                    var paid = api.column(6, {
                         page: 'current'
                     }).data().reduce(function(a, b) {
                         return intVal(a) + intVal(b);
                     }, 0);
-                    var due = api.column(8, {
+                    var due = api.column(7, {
                         page: 'current'
                     }).data().reduce(function(a, b) {
                         return intVal(a) + intVal(b);
                     }, 0);
 
-                    $(api.column(6).footer()).html(total.toFixed(2));
-                    $(api.column(7).footer()).html(paid.toFixed(2));
-                    $(api.column(8).footer()).html(due.toFixed(2));
+                    $(api.column(5).footer()).html(total.toFixed(2));
+                    $(api.column(6).footer()).html(paid.toFixed(2));
+                    $(api.column(7).footer()).html(due.toFixed(2));
                 }
             });
 
