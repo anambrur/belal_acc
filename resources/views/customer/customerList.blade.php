@@ -163,7 +163,7 @@
                 <div class="list-toolbar">
                     <div>
                         <h6>Customers</h6>
-                        <p class="hint mb-0 text-muted small">Due = sales − returns − payments</p>
+                        <p class="hint mb-0 text-muted small">Due = sales − returns − payments · Advance amounts show in blue</p>
                     </div>
                     <span class="badge bg-light text-dark border" id="active_filter_label">Filters: All</span>
                 </div>

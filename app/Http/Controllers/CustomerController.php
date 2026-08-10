@@ -188,8 +188,24 @@ class CustomerController extends Controller
             ->editColumn('sell_total', fn ($row) => number_format((float) $row->sell_total, 2))
             ->editColumn('return_total', fn ($row) => number_format((float) $row->return_total, 2))
             ->editColumn('payment_total', fn ($row) => number_format((float) $row->payment_total, 2))
-            ->editColumn('due_total', fn ($row) => number_format((float) $row->due_total, 2))
-            ->rawColumns(['actionPayment', 'action', 'status'])
+            ->editColumn('due_total', function ($row) {
+                $due = (float) $row->due_total;
+
+                if ($due < 0) {
+                    return '<span class="text-info fw-semibold" title="Customer advance / credit">'
+                        . number_format(abs($due), 2)
+                        . '</span>';
+                }
+
+                if ($due > 0) {
+                    return '<span class="text-danger" title="Outstanding due">'
+                        . number_format($due, 2)
+                        . '</span>';
+                }
+
+                return number_format(0, 2);
+            })
+            ->rawColumns(['actionPayment', 'action', 'status', 'due_total'])
             ->make(true);
     }
 
@@ -418,26 +434,29 @@ class CustomerController extends Controller
      */
     public function makeCustomerPayment(Request $request)
     {
-        $request->validate([
-            'customer_id' => 'required',
+        $validated = $request->validate([
+            'customer_id' => 'required|exists:customers,id',
             'customer_name' => 'required',
-            'accounts_id' => 'required',
-            'paid_amount' => 'required',
+            'accounts_id' => 'required|exists:accounts,id',
+            'paid_amount' => 'required|numeric|min:0.01',
             'date' => 'required',
+            'payment_for' => 'nullable|string',
         ]);
 
-        $customer_id = $request->customer_id;
-        $paid_amount = $request->paid_amount;
-        $date = $request->date;
-        $payment_for = $request->payment_for;
+        $customerData = Customer::findOrFail($validated['customer_id']);
+        $accounts = Accounts::findOrFail($validated['accounts_id']);
+        $paidAmount = (float) $validated['paid_amount'];
 
-        $customerData = Customer::findOrFail($customer_id);
+        DB::transaction(function () use ($customerData, $accounts, $validated, $paidAmount) {
+            $customerData->payment()->create([
+                'accounts_id' => $validated['accounts_id'],
+                'amount' => $paidAmount,
+                'date' => $validated['date'],
+                'payment_for' => $validated['payment_for'] ?? 'cus_due_return',
+            ]);
 
-        $customerData->payment()->create(['accounts_id' => $request->accounts_id, 'amount' => $paid_amount, 'date' => $date, 'payment_for' => $payment_for]);
-
-        // Update cash in and accounts
-        $accounts = Accounts::findOrFail($request->accounts_id);
-        $accounts->update(['amount' => $accounts->amount + $request->paid_amount]);
+            $accounts->update(['amount' => $accounts->amount + $paidAmount]);
+        });
 
         return redirect()->route('customer.index')->with('success', 'Payment added successfully');
     }

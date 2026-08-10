@@ -479,16 +479,16 @@
                                         </div>
                                     </div>
 
-                                    <div class="amount-row is-due">
+                                    <div class="amount-row is-due" id="remaining_row">
                                         <div>
-                                            <p class="amount-label">Remaining due</p>
-                                            <span class="amount-sub">After this payment</span>
+                                            <p class="amount-label" id="remaining_label">Remaining due</p>
+                                            <span class="amount-sub" id="remaining_sub">After this payment</span>
                                         </div>
                                         <div>
                                             <div class="input-with-prefix">
                                                 <span class="prefix">৳</span>
                                                 <input type="text"
-                                                    value="{{ old('due', number_format($openingDue, 2, '.', '')) }}"
+                                                    value="{{ old('due', number_format(abs($openingDue), 2, '.', '')) }}"
                                                     name="due" id="due" class="form-control"
                                                     inputmode="decimal" readonly>
                                             </div>
@@ -499,6 +499,7 @@
                                 <div class="summary-note">
                                     <i class="fa fa-info-circle me-1"></i>
                                     Collected amount is posted to the customer ledger and added to the selected account.
+                                    Amount above current due is kept as customer advance.
                                 </div>
 
                                 <div class="form-actions">
@@ -533,13 +534,17 @@
             function recalculateRemaining() {
                 var dueAmount = toNumber($("#due_amount").val());
                 var paid = toNumber($("#paid_amount").val());
+                var remaining = dueAmount - paid;
 
-                if (paid > dueAmount && dueAmount >= 0) {
-                    paid = dueAmount;
-                    $("#paid_amount").val(money(paid));
+                if (remaining < 0) {
+                    $("#remaining_label").text("Advance");
+                    $("#remaining_sub").text("Credit after this payment");
+                    $("#due").val(money(Math.abs(remaining)));
+                } else {
+                    $("#remaining_label").text("Remaining due");
+                    $("#remaining_sub").text("After this payment");
+                    $("#due").val(money(remaining));
                 }
-
-                $("#due").val(money(dueAmount - paid));
             }
 
             $(function() {
