@@ -67,15 +67,21 @@ class CustomerLedgerService
         }
 
         foreach ($payments as $payment) {
+            $paymentInvoice = $payment->payment_for && str_starts_with($payment->payment_for, 'sell:')
+                ? substr($payment->payment_for, 5)
+                : null;
+
             $entries->push((object) [
                 'type' => 'payment',
                 'date' => $payment->date,
                 'debit' => 0.0,
                 'credit' => (float) $payment->amount,
-                'reference' => $payment->payment_for
-                    ? 'Payment — ' . $payment->payment_for
-                    : 'Payment',
-                'invoice_id' => null,
+                'reference' => $paymentInvoice
+                    ? 'Payment (Inv: ' . $paymentInvoice . ')'
+                    : ($payment->payment_for
+                        ? 'Payment — ' . $payment->payment_for
+                        : 'Payment'),
+                'invoice_id' => $paymentInvoice,
                 'source_id' => $payment->id,
                 'payment_for' => $payment->payment_for,
             ]);

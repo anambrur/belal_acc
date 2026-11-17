@@ -210,6 +210,7 @@ class SellController extends Controller
                 'accounts_id' => $request->accounts_id,
                 'amount' => $request->paid_amount,
                 'date' => $request->date,
+                'payment_for' => 'sell:' . $invoice_id,
             ]);
 
             // Update cash in and accounts
@@ -258,58 +259,60 @@ class SellController extends Controller
      */
     public function update(Request $request, $sell)
     {
+        $request->validate([
+            'customer_id' => 'required',
+            'date' => 'required',
+            'total_price' => 'required',
+            'paid_amount' => 'required',
+            'sub_total' => 'required',
+            'discount_price' => 'required',
+            'due' => 'required',
+            'accounts_id' => 'required|exists:accounts,id',
+        ]);
+
         DB::beginTransaction();
         try {
             $invoice_id = $sell;
-            $sell_edit = Sell::where('invoice_id', $invoice_id)->get();
-            if ($sell_edit->isNotEmpty()) {
-                $sell_edit->each->delete();
-            }
-            $request->validate([
-                'customer_id' => 'required',
-                'date' => 'required',
-                'total_price' => 'required',
-                'paid_amount' => 'required',
-                'sub_total' => 'required',
-                'discount_price' => 'required',
-                'due' => 'required',
-                'accounts_id' => 'required',
-
-            ]);
             $customer_id = $request->customer_id;
             $date = $request->date;
             $total_price = $request->total_price;
-            $paid_amount = $request->paid_amount;
+            $paid_amount = (float) $request->paid_amount;
             $discount_price = $request->discount_price;
+
+            // Reverse the old payment of this invoice (and its account balance)
+            $old_sell = Sell::where('invoice_id', $invoice_id)->first();
+            if ($old_sell) {
+                $this->reverseSellPayments($old_sell);
+            }
+
+            $location_id = $old_sell->location_id
+                ?? Customer::where('id', $customer_id)->value('location_id');
+
+            Sell::where('invoice_id', $invoice_id)->delete();
+
             Sell::create([
                 'customer_id' => $customer_id,
                 'total_price' => $total_price,
                 'paid_amount' => $paid_amount,
                 'date' => $date,
                 'invoice_id' => $invoice_id,
-                'total_discount' => $discount_price
+                'total_discount' => $discount_price,
+                'location_id' => $location_id,
             ]);
 
-            //Retrieve customer data
-            $customerData = Customer::findOrFail($customer_id);
-            // Update or create payment entry
-            $payment = $customerData->payment()->firstOrCreate([
-                'accounts_id' => $request->accounts_id,
-                'amount' => $paid_amount,
-                'date' => $date,
-            ]);
-
-
-            if (!$payment->wasRecentlyCreated) {
-                $payment->update([
+            // Create a fresh payment linked to this invoice
+            if ($paid_amount > 0) {
+                $customerData = Customer::findOrFail($customer_id);
+                $customerData->payment()->create([
+                    'accounts_id' => $request->accounts_id,
                     'amount' => $paid_amount,
                     'date' => $date,
+                    'payment_for' => 'sell:' . $invoice_id,
                 ]);
-            }
 
-            // Update cash in and accounts
-            $accounts = Accounts::findOrFail($request->accounts_id);
-            $accounts->update(['amount' => $accounts->amount + $request->paid_amount]);
+                $accounts = Accounts::findOrFail($request->accounts_id);
+                $accounts->update(['amount' => $accounts->amount + $paid_amount]);
+            }
             DB::commit();
             toastr()->success('Sell updated successfully', 'Success');
             return redirect()->route('sell.index');
@@ -326,36 +329,48 @@ class SellController extends Controller
     public function destroy(Sell $sell)
     {
         try {
-            // Get all sells with the same invoice_id
-            $sells = Sell::where('invoice_id', $sell->invoice_id)->get();
-
-            // Get the total paid amount for this invoice
-            $totalPaid = $sells->sum('paid_amount');
-
-            // Find related payments and reverse them
-            $customer = Customer::find($sell->customer_id);
-            if ($customer) {
-                $payments = $customer->payment()
-                    ->where('amount', $totalPaid)
-                    ->where('date', $sell->date)
-                    ->get();
-
-                // Reverse the account balances
-                foreach ($payments as $payment) {
-                    $account = Accounts::find($payment->accounts_id);
-                    if ($account) {
-                        $account->update(['amount' => $account->amount - $payment->amount]);
-                    }
-                    $payment->delete();
-                }
-            }
-
-            // Delete all sells with this invoice_id
-            Sell::where('invoice_id', $sell->invoice_id)->delete();
+            DB::transaction(function () use ($sell) {
+                $this->reverseSellPayments($sell);
+                Sell::where('invoice_id', $sell->invoice_id)->delete();
+            });
 
             return response()->json(['success' => true, 'message' => 'Sell record deleted successfully.']);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Error deleting sell record: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Find the payment(s) that belong to a sell invoice, reverse their
+     * account balance and delete them.
+     */
+    private function reverseSellPayments(Sell $sell): void
+    {
+        $customer = Customer::find($sell->customer_id);
+        if (!$customer) {
+            return;
+        }
+
+        $payments = $customer->payment()
+            ->where('payment_for', 'sell:' . $sell->invoice_id)
+            ->get();
+
+        // Legacy payments (created before invoice tagging): match by amount + date
+        if ($payments->isEmpty() && (float) $sell->paid_amount > 0) {
+            $legacy = $customer->payment()
+                ->whereNull('payment_for')
+                ->where('amount', $sell->paid_amount)
+                ->whereDate('date', $sell->date)
+                ->first();
+            $payments = $legacy ? collect([$legacy]) : collect();
+        }
+
+        foreach ($payments as $payment) {
+            $account = Accounts::find($payment->accounts_id);
+            if ($account) {
+                $account->update(['amount' => $account->amount - $payment->amount]);
+            }
+            $payment->delete();
         }
     }
 
